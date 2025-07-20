@@ -1,17 +1,8 @@
 {
-    "functions": {
-        "api/**/*.js": {
-            "runtime": "@vercel/node"
-        }
-    },
-    "rewrites": [
-        {
-            "source": "/",
-            "destination": "/public/eligibility-test.html"
-        },
-        {
-            "source": "/test",
-            "destination": "/public/eligibility-test.html"
-        }
-    ]
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/eligibility-test.html"
+    }
+  ]
 }
