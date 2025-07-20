@@ -1,10 +1,10 @@
-// api/medicaid/check.js - CORRECTED Real Office Ally Implementation
+// api/medicaid/check.js - Real Office Ally Implementation with Simulation Toggle
 const { pool } = require('../_db');
 const SftpClient = require('ssh2-sftp-client');
 
-// Office Ally SFTP Configuration - CORRECTED
+// Office Ally SFTP Configuration
 const sftpConfig = {
-    host: process.env.OFFICE_ALLY_SFTP_HOST, // Should be ftp10.officeally.com
+    host: process.env.OFFICE_ALLY_SFTP_HOST || 'sftp.officeally.com',
     port: parseInt(process.env.OFFICE_ALLY_SFTP_PORT) || 22,
     username: process.env.OFFICE_ALLY_SFTP_USER,
     password: process.env.OFFICE_ALLY_SFTP_PASS
@@ -108,7 +108,7 @@ function parseX12_271(x12Data) {
     }
 }
 
-// Upload file to Office Ally SFTP - CORRECTED FOLDER NAME
+// Upload file to Office Ally SFTP
 async function uploadToOfficeAlly(filename, content) {
     const sftp = new SftpClient();
 
@@ -116,7 +116,7 @@ async function uploadToOfficeAlly(filename, content) {
         await sftp.connect(sftpConfig);
         console.log('✅ Connected to Office Ally SFTP');
 
-        // Upload to INBOUND directory (CORRECTED: was "incoming")
+        // Upload to inbound directory
         const remotePath = `/inbound/${filename}`;
         await sftp.put(Buffer.from(content), remotePath);
 
@@ -131,14 +131,13 @@ async function uploadToOfficeAlly(filename, content) {
     }
 }
 
-// Download response file from Office Ally SFTP - CORRECTED FOLDER NAME
+// Download response file from Office Ally SFTP
 async function downloadFromOfficeAlly(filename) {
     const sftp = new SftpClient();
 
     try {
         await sftp.connect(sftpConfig);
 
-        // Download from OUTBOUND directory (CORRECTED: was "outgoing")
         const remotePath = `/outbound/${filename}`;
         const buffer = await sftp.get(remotePath);
 

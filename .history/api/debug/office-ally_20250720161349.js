@@ -88,8 +88,8 @@ module.exports = async function handler(req, res) {
                 sftpTest.details.rootDirectory = `⚠️ List failed: ${listError.message}`;
             }
 
-            // Check for standard Office Ally directories
-            const standardDirs = ['inbound', 'outbound'];
+            // Check for standard Office Ally directories (FIXED: inbound/outbound)
+            const standardDirs = ['inbound', 'outbound', 'archive'];
             for (const dir of standardDirs) {
                 try {
                     await sftp.list(`/${dir}`);
