@@ -1,19 +1,15 @@
 {
   "name": "medicaid-eligibility-checker",
   "version": "1.0.0",
-  "type": "module",
-  "description": "Medicaid eligibility checker via Office Ally SFTP",
+  "description": "",
+  "main": "index.js",
   "scripts": {
-    "dev": "vercel dev",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [
-    "medicaid",
-    "eligibility",
-    "healthcare"
-  ],
+  "keywords": [],
   "author": "",
   "license": "ISC",
+  "type": "commonjs",
   "dependencies": {
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
