@@ -4,17 +4,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UHIN Medicaid Eligibility Tester</title>
+    <title>Medicaid Eligibility Tester</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
 <body class="bg-gray-50 p-8">
     <div class="max-w-2xl mx-auto">
         <div class="bg-white rounded-lg shadow-lg p-6">
-            <div class="text-center mb-6">
-                <h1 class="text-2xl font-bold text-gray-800 mb-2">🏥 Utah Medicaid Eligibility Checker</h1>
-                <p class="text-gray-600">Real-time eligibility verification via UHIN</p>
-            </div>
+            <h1 class="text-2xl font-bold text-gray-800 mb-6">🏥 Medicaid Eligibility Tester</h1>
+            <p class="text-gray-600 mb-6">Test the eligibility checker with real patient data before integrating into
+                production.</p>
 
             <form id="eligibilityForm" class="space-y-4">
                 <div class="grid grid-cols-2 gap-4">
@@ -44,24 +43,24 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Utah Medicaid ID</label>
-                    <input type="text" id="medicaidId" placeholder="1234567890"
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Medicaid ID</label>
+                    <input type="text" id="medicaidId" placeholder="UT123456789"
                         class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                    <p class="text-xs text-gray-500 mt-1">10 digits (e.g., 1234567890)</p>
                 </div>
 
                 <button type="submit" id="checkButton"
                     class="w-full bg-blue-500 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-600 transition-colors">
-                    🔍 Check Eligibility via UHIN
+                    🔍 Check Eligibility
                 </button>
             </form>
 
             <div id="loadingState" class="hidden mt-6 text-center">
                 <div class="inline-flex items-center space-x-2">
                     <div class="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-                    <span class="text-gray-600">Checking with Utah Medicaid via UHIN...</span>
+                    <span class="text-gray-600">Checking eligibility...</span>
                 </div>
-                <p class="text-sm text-gray-500 mt-2">Real-time processing (typically 2-5 seconds)</p>
+                <p class="text-sm text-gray-500 mt-2">This is currently simulated - will be replaced with Office Ally
+                    integration</p>
             </div>
 
             <div id="results" class="hidden mt-6"></div>
@@ -71,15 +70,15 @@
                 <div id="historyList" class="space-y-2"></div>
             </div>
 
-            <!-- Updated Status -->
-            <div class="mt-8 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <h4 class="font-semibold text-green-800 mb-2">✅ UHIN Integration Ready</h4>
-                <ul class="text-sm text-green-700 space-y-1">
-                    <li>✅ Updated to UHIN SOAP API</li>
-                    <li>✅ Real-time X12 270/271 processing</li>
-                    <li>✅ Direct Utah Medicaid connection</li>
-                    <li>⏳ Waiting for UHIN credentials from provider</li>
-                    <li>🔄 Running in simulation mode until credentials received</li>
+            <!-- Development Notes -->
+            <div class="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <h4 class="font-semibold text-yellow-800 mb-2">🚧 Development Status</h4>
+                <ul class="text-sm text-yellow-700 space-y-1">
+                    <li>✅ Database table created</li>
+                    <li>✅ API endpoint working</li>
+                    <li>✅ Basic validation</li>
+                    <li>⏳ Office Ally SFTP integration (next step)</li>
+                    <li>⏳ X12 270/271 file processing (next step)</li>
                 </ul>
             </div>
         </div>
@@ -97,7 +96,7 @@
 
             // Show loading state
             button.disabled = true;
-            button.textContent = 'Checking via UHIN...';
+            button.textContent = 'Checking...';
             loading.classList.remove('hidden');
             results.classList.add('hidden');
 
@@ -141,14 +140,13 @@
             } finally {
                 // Reset UI
                 button.disabled = false;
-                button.textContent = '🔍 Check Eligibility via UHIN';
+                button.textContent = '🔍 Check Eligibility';
                 loading.classList.add('hidden');
             }
         });
 
         function displayResult(data) {
             const results = document.getElementById('results');
-            const isSimulation = !data.verified;
 
             if (data.enrolled) {
                 results.innerHTML = `
@@ -157,10 +155,9 @@
                             <span class="text-green-600 text-xl">✅</span>
                             <div>
                                 <h3 class="font-semibold text-green-800">ENROLLED</h3>
-                                <p class="text-sm text-green-600">${data.program || 'Utah Medicaid coverage verified'}</p>
+                                <p class="text-sm text-green-600">${data.program || 'Medicaid coverage verified'}</p>
                                 ${data.details ? `<p class="text-xs text-green-600 mt-1">${data.details}</p>` : ''}
                                 ${data.effectiveDate ? `<p class="text-xs text-green-600">Effective: ${data.effectiveDate}</p>` : ''}
-                                ${isSimulation ? '<p class="text-xs text-orange-600 mt-1">⚠️ Simulation mode - not real data</p>' : ''}
                             </div>
                         </div>
                     </div>
@@ -173,7 +170,7 @@
                             <div>
                                 <h3 class="font-semibold text-red-800">NOT ENROLLED</h3>
                                 <p class="text-sm text-red-600">${data.error || 'No active Medicaid coverage found'}</p>
-                                ${!data.verified ? '<p class="text-xs text-orange-600 mt-1">⚠️ Simulation mode - not real data</p>' : ''}
+                                ${!data.verified ? '<p class="text-xs text-red-500 mt-1">System error - manual verification required</p>' : ''}
                             </div>
                         </div>
                     </div>
