@@ -5,7 +5,7 @@ const { pool } = require('../_db');
 const UHIN_CONFIG = {
     endpoint: 'https://ws.uhin.org/webservices/core/soaptype4.asmx',
     tradingPartner: 'HT009582-001',
-    receiverID: 'HT000004-001', // Utah Medicaid
+    receiverID: 'HT000004-001', // Utah Medicaid PRODUCTION environment
     username: process.env.UHIN_USERNAME,
     password: process.env.UHIN_PASSWORD,
     providerNPI: process.env.PROVIDER_NPI || '1234567890',
@@ -19,23 +19,30 @@ function generateX12_270(patient) {
     const timestamp = new Date();
     const dateStr = timestamp.toISOString().slice(0, 10).replace(/-/g, '').slice(2); // YYMMDD
     const timeStr = timestamp.toISOString().slice(11, 16).replace(':', ''); // HHMM
+    const fullDateStr = timestamp.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD for DTP
 
-    // X12 270 segments for UHIN
+    // Generate tracking numbers matching UHIN format
+    const trackingRef1 = `${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000000)}`;
+    const trackingRef2 = `${Date.now().toString()}${Math.floor(Math.random() * 1000)}`;
+
+    // X12 270 segments for UHIN - updated to match their exact format
     const segments = [
         `ISA*00*          *00*          *ZZ*${UHIN_CONFIG.tradingPartner} *ZZ*${UHIN_CONFIG.receiverID} *${dateStr}*${timeStr}*^*00501*${controlNumber}*0*P*:~`,
-        `GS*HS*${UHIN_CONFIG.tradingPartner}*${UHIN_CONFIG.receiverID}*${dateStr}*${timeStr}*${controlNumber}*X*005010X279A1~`,
+        `GS*HS*${UHIN_CONFIG.tradingPartner}*${UHIN_CONFIG.receiverID}*${fullDateStr}*${timeStr}*${controlNumber}*X*005010X279A1~`,
         `ST*270*0001*005010X279A1~`,
-        `BHT*0022*13**${dateStr}*${timeStr}~`,
+        `BHT*0022*13**${fullDateStr}*${timeStr}~`,
         `HL*1**20*1~`,
         `NM1*PR*2*UTAH MEDICAID FFS*****46*${UHIN_CONFIG.receiverID}~`,
         `HL*2*1*21*1~`,
         `NM1*1P*1*${patient.last.toUpperCase()}*${patient.first.toUpperCase()}***MD*34*${UHIN_CONFIG.providerNPI}~`,
         `HL*3*2*22*0~`,
-        `TRN*1*${controlNumber}*${UHIN_CONFIG.providerNPI}*REALTIME~`,
+        `TRN*1*${trackingRef1}*${UHIN_CONFIG.providerNPI}*ELIGIBILITY~`,
+        `TRN*1*${trackingRef2}*${UHIN_CONFIG.tradingPartner}*REALTIME~`,
         `NM1*IL*1*${patient.last.toUpperCase()}*${patient.first.toUpperCase()}****MI*${patient.ssn || patient.medicaidId}~`,
         `DMG*D8*${formattedDOB}*${patient.gender || 'U'}~`,
+        `DTP*291*RD8*${fullDateStr}-${fullDateStr}~`,
         `EQ*30~`, // Health Benefit Plan Coverage
-        `SE*14*0001~`,
+        `SE*16*0001~`,
         `GE*1*${controlNumber}~`,
         `IEA*1*${controlNumber}~`
     ];
@@ -43,10 +50,18 @@ function generateX12_270(patient) {
     return segments.join('\n');
 }
 
+// Generate UUID exactly 36 characters for UHIN PayloadID requirement
+function generateUUID36() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
 // Generate SOAP envelope for UHIN
 function generateSOAPRequest(x12Payload) {
     const timestamp = new Date().toISOString();
-    const payloadID = `MOONLIT_${Date.now()}`;
+    const payloadID = generateUUID36(); // UHIN requires exactly 36 characters
 
     return `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" 
