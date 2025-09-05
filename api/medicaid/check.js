@@ -1,5 +1,12 @@
 // api/medicaid/check.js - UPDATED for UHIN Integration
-const { pool } = require('../_db');
+let pool;
+try {
+    const db = require('../_db');
+    pool = db.pool;
+} catch (error) {
+    console.log('Database not available, continuing without logging');
+    pool = null;
+}
 
 // Provider Configuration - Office Ally or UHIN based on environment
 // Made dynamic for testing provider switching
@@ -20,21 +27,20 @@ const UHIN_CONFIG = {
 };
 
 // Office Ally Direct Integration Configuration (Real-time eligibility)
-// ✅ CREDENTIALS RECEIVED: Ready for production!
 const OFFICE_ALLY_CONFIG = {
-    endpoint: process.env.OFFICE_ALLY_ENDPOINT || 'https://wsd.officeally.com/TransactionService/rtx.svc', // ✅ Official SOAP endpoint per companion guide
-    receiverID: 'OFFALLY', // Office Ally's standard receiver ID ✅
-    senderID: '1161680', // ✅ Assigned Sender ID from Office Ally
-    username: 'moonlit', // ✅ Confirmed username
-    password: '***REDACTED-OLD-OA-PASSWORD***', // ✅ Real-time eligibility password
+    endpoint: process.env.OFFICE_ALLY_ENDPOINT || 'https://wsd.officeally.com/TransactionService/rtx.svc',
+    receiverID: 'OFFALLY', // Office Ally's standard receiver ID
+    senderID: '1161680', // Assigned Sender ID from Office Ally
+    username: process.env.OFFICE_ALLY_USERNAME || 'moonlit',
+    password: process.env.OFFICE_ALLY_PASSWORD,
     providerNPI: process.env.PROVIDER_NPI || '1275348807',
     providerName: process.env.PROVIDER_NAME || 'MOONLIT_PLLC',
-    // Office Ally identifiers ✅ CONFIRMED
-    isa06: '1161680', // ISA06 - Sender ID ✅
-    isa08: 'OFFALLY', // ISA08 - Receiver ID ✅
-    gs02: '1161680', // GS02 - Sender ID ✅  
-    gs03: 'OFFALLY', // GS03 - Receiver ID ✅
-    payerID: 'UTMCD' // ✅ Correct Office Ally payer ID for Utah Medicaid eligibility
+    // Office Ally identifiers
+    isa06: '1161680', // ISA06 - Sender ID
+    isa08: 'OFFALLY', // ISA08 - Receiver ID
+    gs02: '1161680', // GS02 - Sender ID
+    gs03: 'OFFALLY', // GS03 - Receiver ID
+    payerID: 'UTMCD' // Office Ally payer ID for Utah Medicaid eligibility
 };
 
 // Generate X12 270 for UHIN (embedded in SOAP)
@@ -78,40 +84,77 @@ function generateX12_270(patient) {
     return segments.join('\n');
 }
 
-// Generate X12 270 for Office Ally (Direct Integration)
+// Generate X12 270 for Office Ally (Direct Integration) - FIXED 999 ERRORS
 function generateOfficeAllyX12_270(patient) {
-    const controlNumber = Date.now().toString().slice(-9);
-    const formattedDOB = patient.dob.replace(/-/g, '');
-    const timestamp = new Date();
-    const dateStr = timestamp.toISOString().slice(0, 10).replace(/-/g, '').slice(2); // YYMMDD
-    const timeStr = timestamp.toISOString().slice(11, 16).replace(':', ''); // HHMM
-    const fullDateStr = timestamp.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD for DTP
+    const now = new Date();
+    const ctrl = Date.now().toString().slice(-9);
+    const yymmdd = now.toISOString().slice(2,10).replace(/-/g,'');
+    const hhmm = now.toISOString().slice(11,16).replace(':','');
+    const ccyymmdd = now.toISOString().slice(0,10).replace(/-/g,'');
+    const dob = (patient.dob || '').replace(/-/g,'');
+    const id = patient.medicaidId?.trim();
+    const ssn = patient.ssn?.replace(/\D/g,''); // 9 digits
 
-    // Generate tracking number for Office Ally
-    const trackingRef = `${Date.now().toString().slice(-8)}-OA${Math.floor(Math.random() * 10000)}`;
+    // Fix #4: Choose correct qualifier/id for subscriber
+    let subIdQ, subId;
+    if (id) { 
+        subIdQ = 'MI'; 
+        subId = id; 
+    } else if (ssn && ssn.length >= 9) { 
+        subIdQ = 'SY'; 
+        subId = ssn; 
+    } else { 
+        subIdQ = null; 
+        subId = null; 
+    }
 
-    // X12 270 segments for Office Ally - Using confirmed identifiers ✅
-    const segments = [
-        `ISA*00*          *00*          *ZZ*${OFFICE_ALLY_CONFIG.isa06}*ZZ*${OFFICE_ALLY_CONFIG.isa08}*${dateStr}*${timeStr}*^*00501*${controlNumber}*0*P*:~`,
-        `GS*HS*${OFFICE_ALLY_CONFIG.gs02}*${OFFICE_ALLY_CONFIG.gs03}*${fullDateStr}*${timeStr}*${controlNumber}*X*005010X279A1~`,
-        `ST*270*0001*005010X279A1~`,
-        `BHT*0022*13**${fullDateStr}*${timeStr}~`,
-        `HL*1**20*1~`,
-        `NM1*PR*2*UTAH MEDICAID*****46*${OFFICE_ALLY_CONFIG.payerID}~`,
-        `HL*2*1*21*1~`,
-        `NM1*1P*1*${patient.last.toUpperCase()}*${patient.first.toUpperCase()}***MD*34*${OFFICE_ALLY_CONFIG.providerNPI}~`,
-        `HL*3*2*22*0~`,
-        `TRN*1*${trackingRef}*${OFFICE_ALLY_CONFIG.providerNPI}*ELIGIBILITY~`,
-        `NM1*IL*1*${patient.last.toUpperCase()}*${patient.first.toUpperCase()}****MI*${patient.ssn || patient.medicaidId}~`,
-        `DMG*D8*${formattedDOB}*${patient.gender || 'U'}~`,
-        `DTP*291*RD8*${fullDateStr}-${fullDateStr}~`,
-        `EQ*30~`, // Health Benefit Plan Coverage
-        `SE*14*0001~`,
-        `GE*1*${controlNumber}~`,
-        `IEA*1*${controlNumber}~`
-    ];
+    // Fix #2: Pad ISA06/ISA08 to 15 characters with spaces
+    const pad15 = s => (s ?? '').toString().padEnd(15, ' ');
+    const ISA06 = pad15('1161680');
+    const ISA08 = pad15('OFFALLY');
 
-    return segments.join('~'); // Office Ally uses ~ separator
+    // Fix #1: Build segments WITHOUT trailing "~"; we'll join with "~" once
+    const seg = [];
+
+    seg.push(`ISA*00*          *00*          *ZZ*${ISA06}*01*${ISA08}*${yymmdd}*${hhmm}*^*00501*${ctrl}*0*P*:`);
+    seg.push(`GS*HS*1161680*OFFALLY*${ccyymmdd}*${hhmm}*${ctrl}*X*005010X279A1`);
+    seg.push(`ST*270*0001*005010X279A1`);
+    
+    // Fix #5: BHT02 must be '13' (Request) not '11' (Response)
+    seg.push(`BHT*0022*13*MOONLIT-${ctrl}*20${yymmdd}*${hhmm}`);
+
+    // 2100A: Payer (use OA payer code in NM109 with PI)
+    seg.push(`HL*1**20*1`);
+    seg.push(`NM1*PR*2*UTAH MEDICAID*****PI*UTMCD`);
+
+    // Fix #3: 2100B: Information Receiver (organization, not patient)
+    seg.push(`HL*2*1*21*1`);
+    seg.push(`NM1*1P*2*MOONLIT PLLC*****XX*1275348807`);
+
+    // 2100C: Subscriber (Name/DOB only - SSN/ID causes 999 errors for Utah Medicaid)
+    seg.push(`HL*3*2*22*0`);
+    seg.push(`TRN*1*${ctrl}*1275348807*ELIGIBILITY`);
+    seg.push(`NM1*IL*1*${patient.last?.toUpperCase()||''}*${patient.first?.toUpperCase()||''}`);
+    
+    // Gender handling - Utah Medicaid only accepts M or F, omit if unknown
+    let dmgSegment = `DMG*D8*${dob}`;
+    if (patient.gender && (patient.gender.toUpperCase() === 'M' || patient.gender.toUpperCase() === 'F')) {
+        dmgSegment += `*${patient.gender.toUpperCase()}`;
+    }
+    seg.push(dmgSegment);
+    
+    seg.push(`DTP*291*D8*${ccyymmdd}`);
+    seg.push(`EQ*30`);
+
+    // SE count = segments from ST..SE inclusive
+    const stIndex = seg.findIndex(s => s.startsWith('ST*'));
+    const count = seg.length - stIndex + 1; // +1 for SE itself
+    seg.push(`SE*${count}*0001`);
+    seg.push(`GE*1*${ctrl}`);
+    seg.push(`IEA*1*${ctrl}`);
+
+    // Fix #1: Single "~" join + trailing "~" (no double tildes)
+    return seg.join('~') + '~';
 }
 
 // Generate UUID exactly 36 characters for UHIN PayloadID requirement
@@ -532,22 +575,28 @@ module.exports = async function handler(req, res) {
                 ? simulateEligibilityCheck() 
                 : simulateOfficeAllyEligibilityCheck();
 
-            // Log simulation to database
-            await pool.query(`
-                INSERT INTO eligibility_log (
-                    patient_first_name, patient_last_name, patient_dob,
-                    ssn_last_four, medicaid_id, result, is_enrolled,
-                    performed_at, processing_time_ms, sftp_filename
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8, $9)
-            `, [
-                first.trim(), last.trim(), dob,
-                ssn ? ssn.replace(/\D/g, '').slice(-4) : null,
-                medicaidId || null,
-                JSON.stringify(eligibilityResult),
-                eligibilityResult.enrolled,
-                Date.now() - startTime,
-                `sim_${ELIGIBILITY_PROVIDER}_${Date.now()}.xml`
-            ]);
+            // Log simulation to database (if available)
+            if (pool) {
+                try {
+                    await pool.query(`
+                        INSERT INTO eligibility_log (
+                            patient_first_name, patient_last_name, patient_dob,
+                            ssn_last_four, medicaid_id, result, is_enrolled,
+                            performed_at, processing_time_ms, sftp_filename
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8, $9)
+                    `, [
+                        first.trim(), last.trim(), dob,
+                        ssn ? ssn.replace(/\D/g, '').slice(-4) : null,
+                        medicaidId || null,
+                        JSON.stringify(eligibilityResult),
+                        eligibilityResult.enrolled,
+                        Date.now() - startTime,
+                        `sim_${ELIGIBILITY_PROVIDER}_${Date.now()}.xml`
+                    ]);
+                } catch (dbError) {
+                    console.log('Database logging failed (continuing without):', dbError.message);
+                }
+            }
 
             console.log(`✅ ${providerName} simulation complete: ${eligibilityResult.enrolled ? 'ENROLLED' : 'NOT ENROLLED'}`);
             return res.json(eligibilityResult);
@@ -595,21 +644,27 @@ module.exports = async function handler(req, res) {
         // Parse eligibility result (same X12 271 format for both providers)
         eligibilityResult = parseX12_271(x12_271);
 
-        // Log to database with full audit trail
-        await pool.query(`
-            INSERT INTO eligibility_log (
-                patient_first_name, patient_last_name, patient_dob,
-                ssn_last_four, medicaid_id, raw_270, raw_271, sftp_filename,
-                result, is_enrolled, performed_at, processing_time_ms
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, $11)
-        `, [
-            first.trim(), last.trim(), dob,
-            ssn ? ssn.replace(/\D/g, '').slice(-4) : null,
-            medicaidId || null,
-            x12_270, x12_271, `${ELIGIBILITY_PROVIDER}_${Date.now()}.xml`,
-            JSON.stringify(eligibilityResult), eligibilityResult.enrolled,
-            Date.now() - startTime
-        ]);
+        // Log to database with full audit trail (if available)
+        if (pool) {
+            try {
+                await pool.query(`
+                    INSERT INTO eligibility_log (
+                        patient_first_name, patient_last_name, patient_dob,
+                        ssn_last_four, medicaid_id, raw_270, raw_271, sftp_filename,
+                        result, is_enrolled, performed_at, processing_time_ms
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, $11)
+                `, [
+                    first.trim(), last.trim(), dob,
+                    ssn ? ssn.replace(/\D/g, '').slice(-4) : null,
+                    medicaidId || null,
+                    x12_270, x12_271, `${ELIGIBILITY_PROVIDER}_${Date.now()}.xml`,
+                    JSON.stringify(eligibilityResult), eligibilityResult.enrolled,
+                    Date.now() - startTime
+                ]);
+            } catch (dbError) {
+                console.log('Database logging failed (continuing without):', dbError.message);
+            }
+        }
 
         console.log(`✅ ${providerName} eligibility check complete: ${eligibilityResult.enrolled ? 'ENROLLED' : 'NOT ENROLLED'}`);
 
@@ -618,24 +673,26 @@ module.exports = async function handler(req, res) {
     } catch (error) {
         console.error(`❌ ${getEligibilityProvider().toUpperCase()} eligibility check failed:`, error);
 
-        // Log error to database
-        try {
-            await pool.query(`
-                INSERT INTO eligibility_log (
-                    patient_first_name, patient_last_name, patient_dob,
-                    result, is_enrolled, error_message, performed_at, processing_time_ms
-                ) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7)
-            `, [
-                req.body?.first || 'Unknown',
-                req.body?.last || 'Unknown',
-                req.body?.dob || null,
-                JSON.stringify({ error: error.message }),
-                false,
-                error.message,
-                Date.now() - startTime
-            ]);
-        } catch (logError) {
-            console.error('Failed to log error:', logError);
+        // Log error to database (if available)
+        if (pool) {
+            try {
+                await pool.query(`
+                    INSERT INTO eligibility_log (
+                        patient_first_name, patient_last_name, patient_dob,
+                        result, is_enrolled, error_message, performed_at, processing_time_ms
+                    ) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7)
+                `, [
+                    req.body?.first || 'Unknown',
+                    req.body?.last || 'Unknown',
+                    req.body?.dob || null,
+                    JSON.stringify({ error: error.message }),
+                    false,
+                    error.message,
+                    Date.now() - startTime
+                ]);
+            } catch (logError) {
+                console.log('Database error logging failed (continuing without):', logError.message);
+            }
         }
 
         res.status(500).json({

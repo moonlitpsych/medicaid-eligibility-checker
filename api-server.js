@@ -16,15 +16,15 @@ const OFFICE_ALLY_CONFIG = {
     endpoint: 'https://wsd.officeally.com/TransactionService/rtx.svc',
     receiverID: 'OFFALLY',
     senderID: '1161680',
-    username: 'moonlit',
-    password: '***REDACTED-OLD-OA-PASSWORD***',
+    username: process.env.OFFICE_ALLY_USERNAME || 'moonlit',
+    password: process.env.OFFICE_ALLY_PASSWORD,
     providerNPI: '1275348807',
     providerName: 'MOONLIT_PLLC',
     isa06: '1161680',
     isa08: 'OFFALLY',
     gs02: '1161680',
     gs03: 'OFFALLY',
-    payerID: 'UTMCD' // ✅ Correct Office Ally payer ID for Utah Medicaid eligibility
+    payerID: 'UTMCD' // Correct Office Ally payer ID for Utah Medicaid eligibility
 };
 
 // Generate UUID for PayloadID
@@ -36,90 +36,60 @@ function generateUUID() {
     });
 }
 
-// Generate X12 270 for Office Ally - Clean implementation per Office Ally Companion Guide
+// Generate X12 270 for Office Ally - WORKING FORMAT (Name/DOB only)
 function generateOfficeAllyX12_270(patient) {
-    const controlNumber = Date.now().toString().slice(-9);
-    const formattedDOB = patient.dob.replace(/-/g, '');
-    const timestamp = new Date();
+    const now = new Date();
+    const ctrl = Date.now().toString().slice(-9);
+    const yymmdd = now.toISOString().slice(2,10).replace(/-/g,'');
+    const hhmm = now.toISOString().slice(11,16).replace(':','');
+    const ccyymmdd = now.toISOString().slice(0,10).replace(/-/g,'');
+    const dob = (patient.dob || '').replace(/-/g,'');
+
+    // Pad ISA06/ISA08 to 15 characters with spaces (CRITICAL FIX)
+    const pad15 = s => (s ?? '').toString().padEnd(15, ' ');
+    const ISA06 = pad15('1161680');
+    const ISA08 = pad15('OFFALLY');
+
+    // Build segments WITHOUT trailing "~"; join with "~" once (CRITICAL FIX)
+    const seg = [];
+
+    seg.push(`ISA*00*          *00*          *ZZ*${ISA06}*01*${ISA08}*${yymmdd}*${hhmm}*^*00501*${ctrl}*0*P*:`);
+    seg.push(`GS*HS*1161680*OFFALLY*${ccyymmdd}*${hhmm}*${ctrl}*X*005010X279A1`);
+    seg.push(`ST*270*0001*005010X279A1`);
+    seg.push(`BHT*0022*13*MOONLIT-${ctrl}*20${yymmdd}*${hhmm}`); // 13 = Request (CRITICAL FIX)
+
+    // 2100A: Payer
+    seg.push(`HL*1**20*1`);
+    seg.push(`NM1*PR*2*UTAH MEDICAID*****PI*UTMCD`);
+
+    // 2100B: Information Receiver (organization, not patient) (CRITICAL FIX)
+    seg.push(`HL*2*1*21*1`);
+    seg.push(`NM1*1P*2*MOONLIT PLLC*****XX*1275348807`);
+
+    // 2100C: Subscriber (Name/DOB only - WORKING FORMAT!)
+    seg.push(`HL*3*2*22*0`);
+    seg.push(`TRN*1*${ctrl}*1275348807*ELIGIBILITY`);
+    seg.push(`NM1*IL*1*${patient.last?.toUpperCase()||''}*${patient.first?.toUpperCase()||''}`); // NO SSN/ID (CRITICAL FIX)
     
-    // Date/Time formatting per Office Ally specs
-    const dateStr = timestamp.toISOString().slice(0, 10).replace(/-/g, '').slice(2); // YYMMDD
-    const timeStr = timestamp.toISOString().slice(11, 16).replace(':', ''); // HHMM
-    const fullDateStr = timestamp.toISOString().slice(0, 10).replace(/-/g, ''); // CCYYMMDD
-    
-    // Tracking reference for eligibility inquiry
-    const trackingRef = `${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 100000)}`;
-    
-    // ISA segment - per Office Ally Companion Guide page 12
-    const isaSegment = [
-        'ISA', '00', '          ', '00', '          ', // Auth info
-        'ZZ', OFFICE_ALLY_CONFIG.isa06.padEnd(15).substring(0, 15), // Sender ID (padded to 15)
-        '01', 'OFFALLY        ', // Receiver ID (01 per guide, OFFALLY padded to 15)
-        dateStr, timeStr, '^', '00501', controlNumber, '0', 'P', ':'
-    ].join('*') + '~';
-    
-    // GS segment - per Office Ally Companion Guide page 13
-    const gsSegment = [
-        'GS', 'HS', // HS for 270 per guide
-        OFFICE_ALLY_CONFIG.gs02,
-        'OFFALLY',
-        fullDateStr, timeStr, controlNumber, 'X', '005010X279A1'
-    ].join('*') + '~';
-    
-    // ST segment
-    const stSegment = `ST*270*${controlNumber}*005010X279A1~`;
-    
-    // BHT segment
-    const bhtSegment = `BHT*0022*13**${fullDateStr}*${timeStr}~`;
-    
-    // HL segments for hierarchical structure
-    const hl1Segment = 'HL*1**20*1~'; // Payer level
-    const nm1PrSegment = `NM1*PR*2*UTAH MEDICAID*****PI*${OFFICE_ALLY_CONFIG.payerID}~`;
-    
-    const hl2Segment = 'HL*2*1*21*1~'; // Provider level
-    const nm1ProviderSegment = `NM1*1P*1*${OFFICE_ALLY_CONFIG.providerName}****XX*${OFFICE_ALLY_CONFIG.providerNPI}~`;
-    
-    const hl3Segment = 'HL*3*2*22*0~'; // Subscriber level
-    const trnSegment = `TRN*1*${trackingRef}*${OFFICE_ALLY_CONFIG.providerNPI}*ELIGIBILITY~`;
-    
-    // Patient identification - Office Ally format per companion guide
-    let nm1SubscriberSegment;
-    if (patient.medicaidId && patient.medicaidId.trim()) {
-        // Use Medicaid ID if provided - format per Office Ally guide
-        nm1SubscriberSegment = `NM1*IL*1*${patient.last.toUpperCase()}*${patient.first.toUpperCase()}****MI*${patient.medicaidId.trim()}~`;
-    } else if (patient.ssn && patient.ssn.trim() && patient.ssn.length >= 9) {
-        // Use SSN if provided and valid
-        nm1SubscriberSegment = `NM1*IL*1*${patient.last.toUpperCase()}*${patient.first.toUpperCase()}****SY*${patient.ssn}~`;
-    } else {
-        // No member ID - name/DOB matching only with all required fields
-        nm1SubscriberSegment = `NM1*IL*1*${patient.last.toUpperCase()}*${patient.first.toUpperCase()}*****~`;
+    // Gender handling - Utah Medicaid only accepts M or F, omit if unknown
+    let dmgSegment = `DMG*D8*${dob}`;
+    if (patient.gender && (patient.gender.toUpperCase() === 'M' || patient.gender.toUpperCase() === 'F')) {
+        dmgSegment += `*${patient.gender.toUpperCase()}`;
     }
+    seg.push(dmgSegment);
     
-    // DMG segment for demographics - omit gender if not provided or unknown
-    let dmgSegment = `DMG*D8*${formattedDOB}`;
-    if (patient.gender && patient.gender !== 'U' && (patient.gender === 'M' || patient.gender === 'F')) {
-        dmgSegment += `*${patient.gender}`;
-    }
-    dmgSegment += '~';
-    
-    // EQ segment for eligibility inquiry
-    const eqSegment = 'EQ*30~'; // 30 = general eligibility
-    
-    // Calculate segment count (all segments between ST and SE, inclusive)
-    const segments = [stSegment, bhtSegment, hl1Segment, nm1PrSegment, hl2Segment, nm1ProviderSegment, hl3Segment, trnSegment, nm1SubscriberSegment, dmgSegment, eqSegment];
-    const segmentCount = segments.length + 1; // +1 for SE segment itself
-    
-    // SE segment
-    const seSegment = `SE*${segmentCount}*${controlNumber}~`;
-    
-    // GE segment
-    const geSegment = `GE*1*${controlNumber}~`;
-    
-    // IEA segment
-    const ieaSegment = `IEA*1*${controlNumber}~`;
-    
-    // Assemble complete X12 270
-    return isaSegment + gsSegment + stSegment + bhtSegment + hl1Segment + nm1PrSegment + hl2Segment + nm1ProviderSegment + hl3Segment + trnSegment + nm1SubscriberSegment + dmgSegment + eqSegment + seSegment + geSegment + ieaSegment;
+    seg.push(`DTP*291*D8*${ccyymmdd}`);
+    seg.push(`EQ*30`);
+
+    // SE count = segments from ST..SE inclusive
+    const stIndex = seg.findIndex(s => s.startsWith('ST*'));
+    const count = seg.length - stIndex + 1; // +1 for SE itself
+    seg.push(`SE*${count}*0001`);
+    seg.push(`GE*1*${ctrl}`);
+    seg.push(`IEA*1*${ctrl}`);
+
+    // Single "~" join + trailing "~" (CRITICAL FIX - no double tildes)
+    return seg.join('~') + '~';
 }
 
 // Generate SOAP envelope for Office Ally
@@ -186,39 +156,182 @@ function parseOfficeAllySOAPResponse(soapResponse) {
     return payloadMatch[1].trim();
 }
 
-// Parse X12 271 response
+// Service Type Codes for detailed parsing
+const SERVICE_TYPES = {
+    '1': 'Medical Care',
+    '30': 'Health Benefit Plan Coverage', 
+    '33': 'Chiropractic',
+    '35': 'Dental Care',
+    '45': 'Hospice',
+    '47': 'Hospital - Room and Board',
+    '48': 'Hospital - Inpatient',
+    '50': 'Hospital - Outpatient',
+    '54': 'Long Term Care',
+    '60': 'Hospital',
+    '86': 'Emergency Services',
+    '88': 'Pharmacy',
+    '98': 'Professional Services',
+    'AI': 'Substance Use Disorder',
+    'AL': 'Vision',
+    'MH': 'Mental Health',
+    'UC': 'Urgent Care',
+    'HM': 'Transportation'
+};
+
+// Eligibility Status Codes
+const ELIGIBILITY_CODES = {
+    '1': 'Active Coverage',
+    '2': 'Active - Full Risk Capitation',
+    '3': 'Active - Services Capitated to Primary Care Provider', 
+    'A': 'Active',
+    'I': 'Inactive',
+    'B': 'Unknown',
+    'C': 'Unknown',
+    'G': 'Unknown'
+};
+
+// Enhanced X12 271 Parser for detailed Utah Medicaid analysis
 function parseX12_271(x12Data) {
+    console.log('🔍 Parsing X12 271 with enhanced Utah Medicaid analysis...');
+    
+    const segments = x12Data.split('~').filter(seg => seg.trim());
+    
     const result = {
         enrolled: false,
         program: '',
-        effectiveDate: '',
-        details: '',
+        planType: '',
+        medicaidId: '',
+        address: {},
+        coverage: [],
+        transportation: null,
         verified: true,
-        error: ''
+        error: '',
+        details: '',
+        effectiveDate: new Date().toISOString().split('T')[0]
     };
-
-    const lines = x12Data.split(/[~\n]/);
     
-    for (const line of lines) {
-        if (line.startsWith('EB*')) {
-            const segments = line.split('*');
-            if (segments[1] === '1' || segments[1] === '6') {
-                result.enrolled = true;
-                result.program = 'Utah Medicaid';
-                result.details = 'Active Medicaid coverage';
-            }
-        }
-        
-        if (line.startsWith('AAA*') && line.includes('*N*')) {
-            result.enrolled = false;
-            result.error = 'No active Medicaid coverage found';
-        }
+    // Parse patient information
+    const nmilSegment = segments.find(seg => seg.startsWith('NM1*IL*'));
+    if (nmilSegment) {
+        const parts = nmilSegment.split('*');
+        if (parts[9]) result.medicaidId = parts[9];
     }
-
-    if (!result.enrolled && !result.error) {
+    
+    // Parse address
+    const n3Segment = segments.find(seg => seg.startsWith('N3*'));
+    const n4Segment = segments.find(seg => seg.startsWith('N4*'));
+    if (n3Segment && n4Segment) {
+        const n3Parts = n3Segment.split('*');
+        const n4Parts = n4Segment.split('*');
+        result.address = {
+            street: n3Parts[1],
+            city: n4Parts[1],
+            state: n4Parts[2],
+            zip: n4Parts[3]
+        };
+    }
+    
+    // Parse eligibility benefits (EB segments) - THE KEY DATA!
+    const ebSegments = segments.filter(seg => seg.startsWith('EB*'));
+    
+    let hasActiveTraditional = false;
+    let hasActiveManagedCare = false;
+    let activeCoverageTypes = [];
+    let acoMcoName = null;
+    
+    ebSegments.forEach(eb => {
+        const parts = eb.split('*');
+        const eligibilityCode = parts[1];
+        const serviceTypes = parts[3] ? parts[3].split('^') : [];
+        const planCode = parts[4];
+        const planDescription = parts[5] || '';
+        
+        const isActive = ['1', 'A', '2', '3'].includes(eligibilityCode);
+        
+        if (isActive) {
+            result.enrolled = true;
+            
+            // Analyze plan type from description
+            const desc = planDescription.toUpperCase();
+            
+            if (desc.includes('TARGETED ADULT MEDICAID')) {
+                hasActiveTraditional = true;
+                activeCoverageTypes.push('Targeted Adult Medicaid (ACA Expansion)');
+                result.planType = 'Traditional Fee-for-Service';
+                result.program = 'Targeted Adult Medicaid';
+            } else if (desc.includes('MENTAL HEALTH')) {
+                activeCoverageTypes.push('Mental Health Services');
+            } else if (desc.includes('SUBSTANCE USE')) {
+                activeCoverageTypes.push('Substance Use Disorder');
+            } else if (desc.includes('DENTAL')) {
+                activeCoverageTypes.push('Adult Dental Program');
+            } else if (desc.includes('TRANSPORTATION')) {
+                activeCoverageTypes.push('Non-Emergency Transportation');
+            }
+            
+            // Check for managed care indicators
+            if (planCode === 'MC' && !desc.includes('TARGETED ADULT') && !desc.includes('MENTAL HEALTH') && !desc.includes('SUBSTANCE') && !desc.includes('DENTAL') && !desc.includes('TRANSPORTATION')) {
+                // This might be managed care, but need more analysis
+            }
+            
+            result.coverage.push({
+                status: ELIGIBILITY_CODES[eligibilityCode] || eligibilityCode,
+                planCode,
+                planDescription,
+                services: serviceTypes.map(st => SERVICE_TYPES[st] || st),
+                isActive
+            });
+        }
+    });
+    
+    // Look for transportation provider in LS/LE loops
+    let currentLSIndex = -1;
+    segments.forEach((seg, index) => {
+        if (seg.startsWith('LS*')) {
+            currentLSIndex = index;
+        } else if (seg.startsWith('LE*') && currentLSIndex >= 0) {
+            // Process LS/LE loop
+            const loopSegments = segments.slice(currentLSIndex, index + 1);
+            const mcoSegment = loopSegments.find(s => s.startsWith('NM1*PR*'));
+            if (mcoSegment) {
+                const parts = mcoSegment.split('*');
+                result.transportation = {
+                    company: parts[3],
+                    id: parts[9]
+                };
+            }
+            currentLSIndex = -1;
+        }
+    });
+    
+    // Check for AAA (rejection) segments
+    const aaaSegments = segments.filter(seg => seg.startsWith('AAA*'));
+    if (aaaSegments.length > 0 && !result.enrolled) {
+        result.error = 'No active Medicaid coverage found';
+        return result;
+    }
+    
+    // Determine final program classification
+    if (result.enrolled) {
+        if (hasActiveTraditional) {
+            result.program = 'Utah Medicaid - Traditional (Fee-for-Service)';
+            result.planType = 'Traditional FFS';
+            result.details = `Active traditional Medicaid coverage. Coverage includes: ${[...new Set(activeCoverageTypes)].join(', ')}`;
+        } else if (hasActiveManagedCare) {
+            result.program = `Utah Medicaid - Managed Care${acoMcoName ? ` (${acoMcoName})` : ''}`;
+            result.planType = 'Managed Care';
+            result.details = `Active managed care coverage through ${acoMcoName || 'MCO/ACO'}`;
+        } else {
+            result.program = 'Utah Medicaid';
+            result.planType = 'Standard';
+            result.details = 'Active Medicaid coverage';
+        }
+    } else {
         result.error = 'No active Medicaid coverage found';
     }
-
+    
+    console.log(`✅ Parsed result: ${result.enrolled ? 'ENROLLED' : 'NOT ENROLLED'} - ${result.program}`);
+    
     return result;
 }
 
