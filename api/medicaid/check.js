@@ -329,13 +329,85 @@ function parseOfficeAllySOAPResponse(soapResponse) {
 }
 
 // Parse X12 271 eligibility response
+// Service Type Codes for detailed parsing
+const SERVICE_TYPES = {
+    '1': 'Medical Care',
+    '30': 'Health Benefit Plan Coverage', 
+    '33': 'Chiropractic',
+    '35': 'Dental Care',
+    '45': 'Hospice',
+    '47': 'Hospital - Room and Board',
+    '48': 'Hospital - Inpatient',
+    '50': 'Hospital - Outpatient',
+    '54': 'Long Term Care',
+    '60': 'Hospital',
+    '86': 'Emergency Services',
+    '88': 'Pharmacy',
+    '98': 'Professional Services',
+    'AI': 'Substance Use Disorder',
+    'AL': 'Vision',
+    'MH': 'Mental Health',
+    'UC': 'Urgent Care',
+    'HM': 'Transportation'
+};
+
+// Eligibility Status Codes
+const ELIGIBILITY_CODES = {
+    '1': 'Active Coverage',
+    '2': 'Active - Full Risk Capitation',
+    '3': 'Active - Services Capitated to Primary Care Provider', 
+    'A': 'Active',
+    'I': 'Inactive',
+    'B': 'Unknown',
+    'C': 'Unknown',
+    'G': 'Unknown'
+};
+
+// Enhanced X12 271 Parser for detailed Utah Medicaid analysis
 function parseX12_271(x12Data) {
-    const lines = x12Data.split(/[~\n]/);
-
+    console.log('🔍 Parsing X12 271 with enhanced Utah Medicaid analysis...');
+    
+    const segments = x12Data.split('~').filter(seg => seg.trim());
+    
+    const result = {
+        enrolled: false,
+        program: '',
+        planType: '',
+        medicaidId: '',
+        address: {},
+        coverage: [],
+        transportation: null,
+        verified: true,
+        error: '',
+        details: '',
+        effectiveDate: new Date().toISOString().split('T')[0]
+    };
+    
     try {
-        // Look for EB segments (eligibility/benefit information)
-        const ebSegments = lines.filter(line => line.startsWith('EB*'));
-
+        // Parse patient information
+        const nmilSegment = segments.find(seg => seg.startsWith('NM1*IL*'));
+        if (nmilSegment) {
+            const parts = nmilSegment.split('*');
+            if (parts[9]) result.medicaidId = parts[9];
+        }
+        
+        // Parse address
+        const n3Segment = segments.find(seg => seg.startsWith('N3*'));
+        const n4Segment = segments.find(seg => seg.startsWith('N4*'));
+        if (n3Segment && n4Segment) {
+            const n3Parts = n3Segment.split('*');
+            const n4Parts = n4Segment.split('*');
+            result.address = {
+                street: n3Parts[1],
+                city: n4Parts[1],
+                state: n4Parts[2],
+                zip: n4Parts[3]
+            };
+        }
+        
+        // Parse eligibility benefits (EB segments) - THE KEY DATA!
+        const ebSegments = segments.filter(seg => seg.startsWith('EB*'));
+        
         if (ebSegments.length === 0) {
             return {
                 enrolled: false,
@@ -343,52 +415,123 @@ function parseX12_271(x12Data) {
                 verified: true
             };
         }
-
-        // Parse first EB segment
-        const ebParts = ebSegments[0].split('*');
-        const eligibilityCode = ebParts[1];
-
-        // X12 eligibility codes for active coverage
-        const activeCodes = ['1', 'A', 'B', 'C'];
-        const isEnrolled = activeCodes.includes(eligibilityCode);
-
-        if (isEnrolled) {
-            let program = 'Utah Medicaid';
-            let details = 'Active coverage verified via UHIN';
-
-            // Check for specific service types
-            ebSegments.forEach(segment => {
-                if (segment.includes('*30*')) program += ' - Medical';
-                if (segment.includes('*88*')) program += ' - Pharmacy';
-            });
-
-            return {
-                enrolled: true,
-                program,
-                details,
-                effectiveDate: new Date().toISOString().slice(0, 10),
-                verified: true
-            };
+        
+        let hasActiveTraditional = false;
+        let hasActiveManagedCare = false;
+        let activeCoverageTypes = [];
+        let acoMcoName = null;
+        
+        ebSegments.forEach(eb => {
+            const parts = eb.split('*');
+            const eligibilityCode = parts[1];
+            const serviceTypes = parts[3] ? parts[3].split('^') : [];
+            const planCode = parts[4];
+            const planDescription = parts[5] || '';
+            
+            const isActive = ['1', 'A', '2', '3'].includes(eligibilityCode);
+            
+            if (isActive) {
+                result.enrolled = true;
+                
+                // Analyze plan type from description
+                const desc = planDescription.toUpperCase();
+                
+                if (desc.includes('TARGETED ADULT MEDICAID')) {
+                    hasActiveTraditional = true;
+                    activeCoverageTypes.push('Targeted Adult Medicaid (ACA Expansion)');
+                    result.planType = 'Traditional Fee-for-Service';
+                    result.program = 'Targeted Adult Medicaid';
+                } else if (desc.includes('MENTAL HEALTH')) {
+                    activeCoverageTypes.push('Mental Health Services');
+                } else if (desc.includes('SUBSTANCE USE')) {
+                    activeCoverageTypes.push('Substance Use Disorder');
+                } else if (desc.includes('DENTAL')) {
+                    activeCoverageTypes.push('Adult Dental Program');
+                } else if (desc.includes('TRANSPORTATION')) {
+                    activeCoverageTypes.push('Non-Emergency Transportation');
+                }
+                
+                // Check for managed care indicators
+                if (planCode === 'MC' && !desc.includes('TARGETED ADULT') && !desc.includes('MENTAL HEALTH') && !desc.includes('SUBSTANCE') && !desc.includes('DENTAL') && !desc.includes('TRANSPORTATION')) {
+                    // This might be managed care, but need more analysis
+                }
+                
+                result.coverage.push({
+                    status: ELIGIBILITY_CODES[eligibilityCode] || eligibilityCode,
+                    planCode,
+                    planDescription,
+                    services: serviceTypes.map(st => SERVICE_TYPES[st] || st),
+                    isActive
+                });
+            }
+        });
+        
+        // Look for transportation provider in LS/LE loops
+        let currentLSIndex = -1;
+        segments.forEach((seg, index) => {
+            if (seg.startsWith('LS*')) {
+                currentLSIndex = index;
+            } else if (seg.startsWith('LE*') && currentLSIndex >= 0) {
+                // Process LS/LE loop
+                const loopSegments = segments.slice(currentLSIndex, index + 1);
+                
+                // Look for NM1*77 (Transportation Company)
+                const transportCompany = loopSegments.find(s => s.startsWith('NM1*77*'));
+                if (transportCompany) {
+                    const parts = transportCompany.split('*');
+                    result.transportation = {
+                        company: parts[3] || 'Unknown Transport Company',
+                        id: parts[9] || null
+                    };
+                }
+                
+                currentLSIndex = -1;
+            }
+        });
+        
+        // Final result summary
+        if (result.enrolled) {
+            // Determine overall program type
+            if (hasActiveTraditional && !hasActiveManagedCare) {
+                result.planType = 'Traditional Fee-for-Service';
+                result.program = 'Utah Medicaid (Traditional FFS)';
+            } else if (hasActiveManagedCare && !hasActiveTraditional) {
+                result.planType = 'Managed Care';
+                result.program = acoMcoName || 'Utah Medicaid (Managed Care)';
+            } else if (hasActiveTraditional && hasActiveManagedCare) {
+                result.planType = 'Hybrid (Traditional + Managed Care)';
+                result.program = 'Utah Medicaid (Hybrid Coverage)';
+            } else {
+                // Fallback to generic if we can't determine
+                result.planType = 'Standard Medicaid';
+                result.program = 'Utah Medicaid';
+            }
+            
+            // Set coverage details
+            if (activeCoverageTypes.length > 0) {
+                result.details = `Active coverage includes: ${activeCoverageTypes.join(', ')}`;
+            } else {
+                result.details = 'Active Medicaid coverage verified';
+            }
         } else {
-            let errorMessage = 'No active Medicaid coverage found';
-
-            // Parse specific error codes
-            if (eligibilityCode === '6') errorMessage = 'Coverage terminated';
-            if (eligibilityCode === '7') errorMessage = 'Coverage pending approval';
-
-            return {
-                enrolled: false,
-                error: errorMessage,
-                verified: true
-            };
+            result.error = 'No active Medicaid coverage found';
         }
-
+        
+        console.log('✅ Enhanced X12 271 parsing complete:', {
+            enrolled: result.enrolled,
+            planType: result.planType,
+            coverageCount: result.coverage.length,
+            hasTransportation: !!result.transportation
+        });
+        
+        return result;
+        
     } catch (error) {
-        console.error('X12 parsing error:', error);
+        console.error('❌ Error parsing X12 271 response:', error);
         return {
             enrolled: false,
-            error: 'Unable to parse eligibility response',
-            verified: false
+            error: 'Error parsing eligibility response',
+            verified: true
         };
     }
 }
