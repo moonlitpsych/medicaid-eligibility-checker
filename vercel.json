@@ -1,48 +1,8 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    },
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node",
-      "config": {
-        "maxDuration": 30
-      }
+  "functions": {
+    "api/medicaid/check.js": {
+      "maxDuration": 30
     }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "/(.*\\.(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot))",
-      "dest": "/$1",
-      "headers": {
-        "Cache-Control": "public, max-age=31536000, immutable"
-      }
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ],
-  "env": {
-    "OFFICE_ALLY_USERNAME": "moonlit",
-    "OFFICE_ALLY_PASSWORD": "***REDACTED-OLD-OA-PASSWORD***", 
-    "PROVIDER_NPI": "1275348807",
-    "ELIGIBILITY_PROVIDER": "office_ally",
-    "DATABASE_URL": "postgresql://mock:mock@localhost:5432/mock",
-    "NODE_ENV": "production"
   }
 }
