@@ -1,15 +1,40 @@
 // api/medicaid/check.js - UPDATED for UHIN Integration
 const { pool } = require('../_db');
 
+// Provider Configuration - Office Ally or UHIN based on environment
+// Made dynamic for testing provider switching
+function getEligibilityProvider() {
+    return process.env.ELIGIBILITY_PROVIDER || 'office_ally'; // Default to Office Ally
+}
+
 // UHIN SOAP Configuration
 const UHIN_CONFIG = {
     endpoint: 'https://ws.uhin.org/webservices/core/soaptype4.asmx',
-    tradingPartner: 'HT009582-001',
+    tradingPartner: 'HT009582-001', // Our TPN for UHIN authentication
     receiverID: 'HT000004-001', // Utah Medicaid PRODUCTION environment
+    officeAllyTPN: 'HT006842-001', // Office Ally's TPN for Utah Medicaid routing
     username: process.env.UHIN_USERNAME,
     password: process.env.UHIN_PASSWORD,
     providerNPI: process.env.PROVIDER_NPI || '1234567890',
     providerName: process.env.PROVIDER_NAME || 'MOONLIT_PLLC'
+};
+
+// Office Ally Direct Integration Configuration (Real-time eligibility)
+// ✅ CREDENTIALS RECEIVED: Ready for production!
+const OFFICE_ALLY_CONFIG = {
+    endpoint: process.env.OFFICE_ALLY_ENDPOINT || 'https://wsd.officeally.com/TransactionService/rtx.svc', // ✅ Official SOAP endpoint per companion guide
+    receiverID: 'OFFALLY', // Office Ally's standard receiver ID ✅
+    senderID: '1161680', // ✅ Assigned Sender ID from Office Ally
+    username: 'moonlit', // ✅ Confirmed username
+    password: '***REDACTED-OLD-OA-PASSWORD***', // ✅ Real-time eligibility password
+    providerNPI: process.env.PROVIDER_NPI || '1275348807',
+    providerName: process.env.PROVIDER_NAME || 'MOONLIT_PLLC',
+    // Office Ally identifiers ✅ CONFIRMED
+    isa06: '1161680', // ISA06 - Sender ID ✅
+    isa08: 'OFFALLY', // ISA08 - Receiver ID ✅
+    gs02: '1161680', // GS02 - Sender ID ✅  
+    gs03: 'OFFALLY', // GS03 - Receiver ID ✅
+    payerID: 'UTMCD' // ✅ Correct Office Ally payer ID for Utah Medicaid eligibility
 };
 
 // Generate X12 270 for UHIN (embedded in SOAP)
@@ -25,10 +50,13 @@ function generateX12_270(patient) {
     const trackingRef1 = `${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000000)}`;
     const trackingRef2 = `${Date.now().toString()}${Math.floor(Math.random() * 1000)}`;
 
-    // X12 270 segments for UHIN - updated to match their exact format
+    // HYBRID STRATEGY: Use Office Ally TPN for Utah Medicaid routing
+    const senderTPN = process.env.USE_OFFICE_ALLY_TPN === 'true' ? UHIN_CONFIG.officeAllyTPN : UHIN_CONFIG.tradingPartner;
+    
+    // X12 270 segments with hybrid TPN strategy
     const segments = [
-        `ISA*00*          *00*          *ZZ*${UHIN_CONFIG.tradingPartner} *ZZ*${UHIN_CONFIG.receiverID} *${dateStr}*${timeStr}*^*00501*${controlNumber}*0*P*:~`,
-        `GS*HS*${UHIN_CONFIG.tradingPartner}*${UHIN_CONFIG.receiverID}*${fullDateStr}*${timeStr}*${controlNumber}*X*005010X279A1~`,
+        `ISA*00*          *00*          *ZZ*${senderTPN} *ZZ*${UHIN_CONFIG.receiverID} *${dateStr}*${timeStr}*^*00501*${controlNumber}*0*P*:~`,
+        `GS*HS*${senderTPN}*${UHIN_CONFIG.receiverID}*${fullDateStr}*${timeStr}*${controlNumber}*X*005010X279A1~`,
         `ST*270*0001*005010X279A1~`,
         `BHT*0022*13**${fullDateStr}*${timeStr}~`,
         `HL*1**20*1~`,
@@ -37,7 +65,7 @@ function generateX12_270(patient) {
         `NM1*1P*1*${patient.last.toUpperCase()}*${patient.first.toUpperCase()}***MD*34*${UHIN_CONFIG.providerNPI}~`,
         `HL*3*2*22*0~`,
         `TRN*1*${trackingRef1}*${UHIN_CONFIG.providerNPI}*ELIGIBILITY~`,
-        `TRN*1*${trackingRef2}*${UHIN_CONFIG.tradingPartner}*REALTIME~`,
+        `TRN*1*${trackingRef2}*${senderTPN}*REALTIME~`,
         `NM1*IL*1*${patient.last.toUpperCase()}*${patient.first.toUpperCase()}****MI*${patient.ssn || patient.medicaidId}~`,
         `DMG*D8*${formattedDOB}*${patient.gender || 'U'}~`,
         `DTP*291*RD8*${fullDateStr}-${fullDateStr}~`,
@@ -48,6 +76,42 @@ function generateX12_270(patient) {
     ];
 
     return segments.join('\n');
+}
+
+// Generate X12 270 for Office Ally (Direct Integration)
+function generateOfficeAllyX12_270(patient) {
+    const controlNumber = Date.now().toString().slice(-9);
+    const formattedDOB = patient.dob.replace(/-/g, '');
+    const timestamp = new Date();
+    const dateStr = timestamp.toISOString().slice(0, 10).replace(/-/g, '').slice(2); // YYMMDD
+    const timeStr = timestamp.toISOString().slice(11, 16).replace(':', ''); // HHMM
+    const fullDateStr = timestamp.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD for DTP
+
+    // Generate tracking number for Office Ally
+    const trackingRef = `${Date.now().toString().slice(-8)}-OA${Math.floor(Math.random() * 10000)}`;
+
+    // X12 270 segments for Office Ally - Using confirmed identifiers ✅
+    const segments = [
+        `ISA*00*          *00*          *ZZ*${OFFICE_ALLY_CONFIG.isa06}*ZZ*${OFFICE_ALLY_CONFIG.isa08}*${dateStr}*${timeStr}*^*00501*${controlNumber}*0*P*:~`,
+        `GS*HS*${OFFICE_ALLY_CONFIG.gs02}*${OFFICE_ALLY_CONFIG.gs03}*${fullDateStr}*${timeStr}*${controlNumber}*X*005010X279A1~`,
+        `ST*270*0001*005010X279A1~`,
+        `BHT*0022*13**${fullDateStr}*${timeStr}~`,
+        `HL*1**20*1~`,
+        `NM1*PR*2*UTAH MEDICAID*****46*${OFFICE_ALLY_CONFIG.payerID}~`,
+        `HL*2*1*21*1~`,
+        `NM1*1P*1*${patient.last.toUpperCase()}*${patient.first.toUpperCase()}***MD*34*${OFFICE_ALLY_CONFIG.providerNPI}~`,
+        `HL*3*2*22*0~`,
+        `TRN*1*${trackingRef}*${OFFICE_ALLY_CONFIG.providerNPI}*ELIGIBILITY~`,
+        `NM1*IL*1*${patient.last.toUpperCase()}*${patient.first.toUpperCase()}****MI*${patient.ssn || patient.medicaidId}~`,
+        `DMG*D8*${formattedDOB}*${patient.gender || 'U'}~`,
+        `DTP*291*RD8*${fullDateStr}-${fullDateStr}~`,
+        `EQ*30~`, // Health Benefit Plan Coverage
+        `SE*14*0001~`,
+        `GE*1*${controlNumber}~`,
+        `IEA*1*${controlNumber}~`
+    ];
+
+    return segments.join('~'); // Office Ally uses ~ separator
 }
 
 // Generate UUID exactly 36 characters for UHIN PayloadID requirement
@@ -63,31 +127,76 @@ function generateSOAPRequest(x12Payload) {
     const timestamp = new Date().toISOString();
     const payloadID = generateUUID36(); // UHIN requires exactly 36 characters
 
-    return `<?xml version="1.0" encoding="utf-8"?>
-<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" 
-               xmlns:cor="http://www.caqh.org/SOAP/WSDL/CORERule2.2.0.xsd">
-    <soap:Header>
-        <wsse:Security soap:mustUnderstand="true" 
-                       xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
-            <wsse:UsernameToken xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
-                <wsse:Username>${UHIN_CONFIG.username}</wsse:Username>
-                <wsse:Password Type="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText">${UHIN_CONFIG.password}</wsse:Password>
-            </wsse:UsernameToken>
-        </wsse:Security>
-    </soap:Header>
-    <soap:Body>
-        <cor:COREEnvelopeRealTimeRequest>
-            <PayloadType>X12_270_Request_005010X279A1</PayloadType>
-            <ProcessingMode>RealTime</ProcessingMode>
-            <PayloadID>${payloadID}</PayloadID>
-            <TimeStamp>${timestamp}</TimeStamp>
-            <SenderID>${UHIN_CONFIG.tradingPartner}</SenderID>
-            <ReceiverID>${UHIN_CONFIG.receiverID}</ReceiverID>
-            <CORERuleVersion>2.2.0</CORERuleVersion>
-            <Payload>${x12Payload}</Payload>
-        </cor:COREEnvelopeRealTimeRequest>
-    </soap:Body>
+    // Generate unique wsu:Id for UsernameToken (matching approved format)
+    const wsuId = `UsernameToken-${Math.floor(Math.random() * 100000000)}`;
+    
+    return `<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
+xmlns:cor="http://www.caqh.org/SOAP/WSDL/CORERule2.2.0.xsd">
+<soap:Header>
+<wsse:Security soap:mustUnderstand="true"
+xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
+<wsse:UsernameToken wsu:Id="${wsuId}"
+xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
+<wsse:Username>${UHIN_CONFIG.username}</wsse:Username>
+<wsse:Password
+Type="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText">${UHIN_CONFIG.password}</wsse:Password>
+</wsse:UsernameToken>
+</wsse:Security>
+</soap:Header>
+<soap:Body>
+<cor:COREEnvelopeRealTimeRequest>
+<PayloadType>X12_270_Request_005010X279A1</PayloadType>
+<ProcessingMode>RealTime</ProcessingMode>
+<PayloadID>${payloadID}</PayloadID>
+<TimeStamp>${timestamp}</TimeStamp>
+<SenderID>${UHIN_CONFIG.tradingPartner}</SenderID>
+<ReceiverID>${UHIN_CONFIG.receiverID}</ReceiverID>
+<CORERuleVersion>2.2.0</CORERuleVersion>
+<Payload>${x12Payload}</Payload>
+</cor:COREEnvelopeRealTimeRequest>
+</soap:Body>
 </soap:Envelope>`;
+}
+
+// Generate SOAP envelope for Office Ally (Direct Integration) ✅
+function generateOfficeAllySOAPRequest(x12Payload) {
+    const timestamp = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'); // CCYY-MM-DDTHH:MM:SSZ format
+    const payloadID = generateUUID();
+    
+    // ✅ EXACT SOAP FORMAT per Office Ally Companion Guide (Page 6)
+    return `<soapenv:Envelope xmlns:soapenv="http://www.w3.org/2003/05/soap-envelope">
+<soapenv:Header>
+<wsse:Security xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
+<wsse:UsernameToken>
+<wsse:Username>${OFFICE_ALLY_CONFIG.username}</wsse:Username>
+<wsse:Password>${OFFICE_ALLY_CONFIG.password}</wsse:Password>
+</wsse:UsernameToken>
+</wsse:Security>
+</soapenv:Header>
+<soapenv:Body>
+<ns1:COREEnvelopeRealTimeRequest xmlns:ns1="http://www.caqh.org/SOAP/WSDL/CORERule2.2.0.xsd">
+<PayloadType>X12_270_Request_005010X279A1</PayloadType>
+<ProcessingMode>RealTime</ProcessingMode>
+<PayloadID>${payloadID}</PayloadID>
+<TimeStamp>${timestamp}</TimeStamp>
+<SenderID>${OFFICE_ALLY_CONFIG.senderID}</SenderID>
+<ReceiverID>${OFFICE_ALLY_CONFIG.receiverID}</ReceiverID>
+<CORERuleVersion>2.2.0</CORERuleVersion>
+<Payload>
+<![CDATA[${x12Payload}]]>
+</Payload>
+</ns1:COREEnvelopeRealTimeRequest>
+</soapenv:Body>
+</soapenv:Envelope>`;
+}
+
+// Generate UUID for PayloadID
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
 }
 
 // Send request to UHIN
@@ -114,6 +223,30 @@ async function sendUHINRequest(soapRequest) {
     }
 }
 
+// Send request to Office Ally
+async function sendOfficeAllyRequest(soapRequest) {
+    try {
+        const response = await fetch(OFFICE_ALLY_CONFIG.endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/soap+xml; charset=utf-8;action=RealTimeTransaction;',
+                'Action': 'RealTimeTransaction'
+            },
+            body: soapRequest
+        });
+
+        if (!response.ok) {
+            throw new Error(`Office Ally API error: ${response.status} ${response.statusText}`);
+        }
+
+        const responseText = await response.text();
+        return responseText;
+    } catch (error) {
+        console.error('Office Ally request failed:', error);
+        throw error;
+    }
+}
+
 // Parse SOAP response to extract X12 271
 function parseSOAPResponse(soapResponse) {
     try {
@@ -127,6 +260,28 @@ function parseSOAPResponse(soapResponse) {
     } catch (error) {
         console.error('SOAP parsing error:', error);
         throw new Error('Unable to parse SOAP response');
+    }
+}
+
+// Parse Office Ally SOAP response
+function parseOfficeAllySOAPResponse(soapResponse) {
+    try {
+        // ✅ Extract X12 271 from CAQH CORE SOAP envelope format
+        const payloadMatch = soapResponse.match(/<Payload[^>]*>\s*<!\[CDATA\[(.*?)\]\]>\s*<\/Payload>/s) ||
+                             soapResponse.match(/<Payload[^>]*>(.*?)<\/Payload>/s) ||
+                             soapResponse.match(/<ns1:Payload[^>]*>\s*<!\[CDATA\[(.*?)\]\]>\s*<\/ns1:Payload>/s) ||
+                             soapResponse.match(/<ns1:Payload[^>]*>(.*?)<\/ns1:Payload>/s);
+        
+        if (!payloadMatch) {
+            // Log response for debugging
+            console.log('🔍 Office Ally SOAP Response (first 1000 chars):', soapResponse.substring(0, 1000));
+            throw new Error('No payload found in Office Ally SOAP response');
+        }
+        
+        return payloadMatch[1].trim();
+    } catch (error) {
+        console.error('Office Ally SOAP parsing error:', error);
+        throw new Error('Unable to parse Office Ally SOAP response');
     }
 }
 
@@ -272,6 +427,60 @@ function simulateEligibilityCheck() {
     return scenarios[0].result;
 }
 
+// OFFICE ALLY SIMULATION MODE (for testing without credentials)
+function simulateOfficeAllyEligibilityCheck() {
+    const scenarios = [
+        {
+            weight: 0.65,
+            result: {
+                enrolled: true,
+                program: 'Utah Medicaid Traditional',
+                details: 'Active coverage verified via Office Ally',
+                effectiveDate: new Date().toISOString().slice(0, 10),
+                verified: false // Mark as simulation
+            }
+        },
+        {
+            weight: 0.15,
+            result: {
+                enrolled: true,
+                program: 'Utah Medicaid Managed Care',
+                details: 'Active coverage verified via Office Ally - Managed Care Plan',
+                effectiveDate: new Date(Date.now() - 86400000 * 30).toISOString().slice(0, 10), // 30 days ago
+                verified: false
+            }
+        },
+        {
+            weight: 0.15,
+            result: {
+                enrolled: false,
+                error: 'No active Medicaid coverage found',
+                verified: false
+            }
+        },
+        {
+            weight: 0.05,
+            result: {
+                enrolled: false,
+                error: 'Coverage suspended - contact Utah Medicaid for details',
+                verified: false
+            }
+        }
+    ];
+
+    const random = Math.random();
+    let cumulativeWeight = 0;
+
+    for (const scenario of scenarios) {
+        cumulativeWeight += scenario.weight;
+        if (random <= cumulativeWeight) {
+            return scenario.result;
+        }
+    }
+
+    return scenarios[0].result;
+}
+
 // Main handler
 module.exports = async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -292,7 +501,9 @@ module.exports = async function handler(req, res) {
     try {
         const { first, last, dob, ssn, medicaidId } = req.body || {};
 
-        console.log(`🔍 Checking eligibility for ${first} ${last} via UHIN`);
+        const ELIGIBILITY_PROVIDER = getEligibilityProvider();
+        const providerName = ELIGIBILITY_PROVIDER.toUpperCase();
+        console.log(`🔍 Checking eligibility for ${first} ${last} via ${providerName}`);
 
         // Validate input data
         const validation = validatePatientData({ first, last, dob, ssn, medicaidId });
@@ -306,12 +517,20 @@ module.exports = async function handler(req, res) {
 
         let eligibilityResult;
 
-        // Check if we're in simulation mode (no UHIN credentials yet)
-        if (process.env.SIMULATION_MODE === 'true' || !UHIN_CONFIG.username || !UHIN_CONFIG.password) {
-            console.log('⏳ Running in SIMULATION mode (no UHIN credentials)...');
+        // Check if we're in simulation mode (no credentials yet)
+        const hasCredentials = ELIGIBILITY_PROVIDER === 'uhin' 
+            ? (UHIN_CONFIG.username && UHIN_CONFIG.password)
+            : (OFFICE_ALLY_CONFIG.username && OFFICE_ALLY_CONFIG.password);
+
+        if (process.env.SIMULATION_MODE === 'true' || !hasCredentials) {
+            console.log(`⏳ Running in SIMULATION mode (no ${providerName} credentials)...`);
 
             await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate processing time
-            eligibilityResult = simulateEligibilityCheck();
+            
+            // Use appropriate simulation based on provider
+            eligibilityResult = ELIGIBILITY_PROVIDER === 'uhin' 
+                ? simulateEligibilityCheck() 
+                : simulateOfficeAllyEligibilityCheck();
 
             // Log simulation to database
             await pool.query(`
@@ -327,38 +546,53 @@ module.exports = async function handler(req, res) {
                 JSON.stringify(eligibilityResult),
                 eligibilityResult.enrolled,
                 Date.now() - startTime,
-                `sim_uhin_${Date.now()}.xml`
+                `sim_${ELIGIBILITY_PROVIDER}_${Date.now()}.xml`
             ]);
 
-            console.log(`✅ Simulation complete: ${eligibilityResult.enrolled ? 'ENROLLED' : 'NOT ENROLLED'}`);
+            console.log(`✅ ${providerName} simulation complete: ${eligibilityResult.enrolled ? 'ENROLLED' : 'NOT ENROLLED'}`);
             return res.json(eligibilityResult);
         }
 
-        // REAL UHIN INTEGRATION
-        console.log('🚀 Processing real UHIN eligibility check...');
+        // REAL INTEGRATION - Route to appropriate provider
+        console.log(`🚀 Processing real ${providerName} eligibility check...`);
 
-        // Generate X12 270 request
-        const x12_270 = generateX12_270({
-            first: first.trim(),
-            last: last.trim(),
-            dob,
-            ssn: ssn?.replace(/\D/g, ''),
-            medicaidId,
-            gender: 'U' // Unknown - can be enhanced later
-        });
+        let x12_270, soapRequest, soapResponse, x12_271;
 
-        // Wrap in SOAP envelope
-        const soapRequest = generateSOAPRequest(x12_270);
+        if (ELIGIBILITY_PROVIDER === 'uhin') {
+            // UHIN Integration
+            x12_270 = generateX12_270({
+                first: first.trim(),
+                last: last.trim(),
+                dob,
+                ssn: ssn?.replace(/\D/g, ''),
+                medicaidId,
+                gender: 'U'
+            });
 
-        // Send to UHIN (real-time response!)
-        console.log('📡 Sending request to UHIN...');
-        const soapResponse = await sendUHINRequest(soapRequest);
-        console.log('📨 Received response from UHIN');
+            soapRequest = generateSOAPRequest(x12_270);
+            console.log('📡 Sending request to UHIN...');
+            soapResponse = await sendUHINRequest(soapRequest);
+            console.log('📨 Received response from UHIN');
+            x12_271 = parseSOAPResponse(soapResponse);
+        } else {
+            // Office Ally Integration
+            x12_270 = generateOfficeAllyX12_270({
+                first: first.trim(),
+                last: last.trim(),
+                dob,
+                ssn: ssn?.replace(/\D/g, ''),
+                medicaidId,
+                gender: 'U'
+            });
 
-        // Extract X12 271 from SOAP response
-        const x12_271 = parseSOAPResponse(soapResponse);
+            soapRequest = generateOfficeAllySOAPRequest(x12_270);
+            console.log('📡 Sending request to Office Ally...');
+            soapResponse = await sendOfficeAllyRequest(soapRequest);
+            console.log('📨 Received response from Office Ally');
+            x12_271 = parseOfficeAllySOAPResponse(soapResponse);
+        }
 
-        // Parse eligibility result
+        // Parse eligibility result (same X12 271 format for both providers)
         eligibilityResult = parseX12_271(x12_271);
 
         // Log to database with full audit trail
@@ -372,17 +606,17 @@ module.exports = async function handler(req, res) {
             first.trim(), last.trim(), dob,
             ssn ? ssn.replace(/\D/g, '').slice(-4) : null,
             medicaidId || null,
-            x12_270, x12_271, `uhin_${Date.now()}.xml`,
+            x12_270, x12_271, `${ELIGIBILITY_PROVIDER}_${Date.now()}.xml`,
             JSON.stringify(eligibilityResult), eligibilityResult.enrolled,
             Date.now() - startTime
         ]);
 
-        console.log(`✅ UHIN eligibility check complete: ${eligibilityResult.enrolled ? 'ENROLLED' : 'NOT ENROLLED'}`);
+        console.log(`✅ ${providerName} eligibility check complete: ${eligibilityResult.enrolled ? 'ENROLLED' : 'NOT ENROLLED'}`);
 
         res.json(eligibilityResult);
 
     } catch (error) {
-        console.error('❌ UHIN eligibility check failed:', error);
+        console.error(`❌ ${getEligibilityProvider().toUpperCase()} eligibility check failed:`, error);
 
         // Log error to database
         try {

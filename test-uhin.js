@@ -47,32 +47,40 @@ function generateX12_270() {
 // Generate SOAP envelope
 function generateSOAPRequest(x12Payload) {
     const timestamp = new Date().toISOString();
-    const payloadID = `MOONLIT_TEST_${Date.now()}`;
+    // Generate UUID exactly 36 characters for UHIN PayloadID requirement
+    const payloadID = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
 
-    return `<?xml version="1.0" encoding="utf-8"?>
-<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" 
-               xmlns:cor="http://www.caqh.org/SOAP/WSDL/CORERule2.2.0.xsd">
-    <soap:Header>
-        <wsse:Security soap:mustUnderstand="true" 
-                       xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
-            <wsse:UsernameToken xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
-                <wsse:Username>${UHIN_CONFIG.username}</wsse:Username>
-                <wsse:Password Type="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText">${UHIN_CONFIG.password}</wsse:Password>
-            </wsse:UsernameToken>
-        </wsse:Security>
-    </soap:Header>
-    <soap:Body>
-        <cor:COREEnvelopeRealTimeRequest>
-            <PayloadType>X12_270_Request_005010X279A1</PayloadType>
-            <ProcessingMode>RealTime</ProcessingMode>
-            <PayloadID>${payloadID}</PayloadID>
-            <TimeStamp>${timestamp}</TimeStamp>
-            <SenderID>${UHIN_CONFIG.tradingPartner}</SenderID>
-            <ReceiverID>${UHIN_CONFIG.receiverID}</ReceiverID>
-            <CORERuleVersion>2.2.0</CORERuleVersion>
-            <Payload>${x12Payload}</Payload>
-        </cor:COREEnvelopeRealTimeRequest>
-    </soap:Body>
+    // Generate unique wsu:Id for UsernameToken (matching approved format)
+    const wsuId = `UsernameToken-${Math.floor(Math.random() * 100000000)}`;
+    
+    return `<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
+xmlns:cor="http://www.caqh.org/SOAP/WSDL/CORERule2.2.0.xsd">
+<soap:Header>
+<wsse:Security soap:mustUnderstand="true"
+xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
+<wsse:UsernameToken wsu:Id="${wsuId}"
+xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
+<wsse:Username>${UHIN_CONFIG.username}</wsse:Username>
+<wsse:Password
+Type="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText">${UHIN_CONFIG.password}</wsse:Password>
+</wsse:UsernameToken>
+</wsse:Security>
+</soap:Header>
+<soap:Body>
+<cor:COREEnvelopeRealTimeRequest>
+<PayloadType>X12_270_Request_005010X279A1</PayloadType>
+<ProcessingMode>RealTime</ProcessingMode>
+<PayloadID>${payloadID}</PayloadID>
+<TimeStamp>${timestamp}</TimeStamp>
+<SenderID>${UHIN_CONFIG.tradingPartner}</SenderID>
+<ReceiverID>${UHIN_CONFIG.receiverID}</ReceiverID>
+<CORERuleVersion>2.2.0</CORERuleVersion>
+<Payload>${x12Payload}</Payload>
+</cor:COREEnvelopeRealTimeRequest>
+</soap:Body>
 </soap:Envelope>`;
 }
 
