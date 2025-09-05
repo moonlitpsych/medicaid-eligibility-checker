@@ -178,7 +178,69 @@
                 <strong>{{ result.enrolled ? result.program : result.error }}</strong>
               </p>
 
-              <!-- Details Grid -->
+              <!-- Enhanced Plan Details -->
+              <div v-if="result.enrolled" class="mt-6">
+                <!-- Primary Plan Information -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                  <h4 class="text-lg font-semibold text-blue-900 mb-4">📋 Primary Plan Information</h4>
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <div class="text-sm font-medium text-blue-700">Plan Type</div>
+                      <div class="text-blue-900 font-semibold">{{ result.planType || 'Standard Medicaid' }}</div>
+                    </div>
+                    <div v-if="result.medicaidId">
+                      <div class="text-sm font-medium text-blue-700">Medicaid ID</div>
+                      <div class="text-blue-900 font-mono font-medium">{{ result.medicaidId }}</div>
+                    </div>
+                    <div>
+                      <div class="text-sm font-medium text-blue-700">Effective Date</div>
+                      <div class="text-blue-900 font-medium">{{ result.effectiveDate }}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Address Information -->
+                <div v-if="result.address && result.address.street" class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+                  <h4 class="text-sm font-semibold text-gray-700 mb-2">📍 Address on File</h4>
+                  <div class="text-gray-900">
+                    <div>{{ result.address.street }}</div>
+                    <div>{{ result.address.city }}, {{ result.address.state }} {{ result.address.zip }}</div>
+                  </div>
+                </div>
+
+                <!-- Coverage Breakdown -->
+                <div v-if="result.coverage && result.coverage.length > 0" class="mb-6">
+                  <h4 class="text-lg font-semibold text-gray-900 mb-4">🎯 Active Coverage Details</h4>
+                  <div class="space-y-3">
+                    <div 
+                      v-for="(coverage, index) in result.coverage.filter(c => c.isActive)" 
+                      :key="index"
+                      class="bg-green-50 border border-green-200 rounded-lg p-4"
+                    >
+                      <div class="flex justify-between items-start mb-2">
+                        <h5 class="font-medium text-green-900">{{ coverage.planDescription || 'Coverage Plan' }}</h5>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          {{ coverage.status }}
+                        </span>
+                      </div>
+                      <div v-if="coverage.services && coverage.services.length > 0" class="text-sm text-green-800">
+                        <strong>Services:</strong> {{ coverage.services.join(', ') }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Transportation Provider -->
+                <div v-if="result.transportation" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                  <h4 class="text-sm font-semibold text-yellow-800 mb-2">🚗 Transportation Provider</h4>
+                  <div class="text-yellow-900">
+                    <strong>{{ result.transportation.company }}</strong>
+                    <span v-if="result.transportation.id" class="ml-2 text-sm">(ID: {{ result.transportation.id }})</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- System Details Grid -->
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                 <div class="bg-gray-50 p-4 rounded-lg">
                   <div class="text-sm font-medium text-gray-500">Patient Name</div>
@@ -198,16 +260,6 @@
                 <div class="bg-gray-50 p-4 rounded-lg">
                   <div class="text-sm font-medium text-gray-500">Source</div>
                   <div class="text-gray-900 font-medium">{{ result.verified ? 'Office Ally (Live)' : 'Simulation' }}</div>
-                </div>
-
-                <div v-if="result.effectiveDate" class="bg-gray-50 p-4 rounded-lg">
-                  <div class="text-sm font-medium text-gray-500">Effective Date</div>
-                  <div class="text-gray-900 font-medium">{{ result.effectiveDate }}</div>
-                </div>
-                
-                <div v-if="result.details" class="bg-gray-50 p-4 rounded-lg">
-                  <div class="text-sm font-medium text-gray-500">Details</div>
-                  <div class="text-gray-900 font-medium">{{ result.details }}</div>
                 </div>
 
                 <div class="bg-gray-50 p-4 rounded-lg">
