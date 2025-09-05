@@ -408,8 +408,10 @@ function validatePatientData(data) {
         if (now.getFullYear() - dob.getFullYear() > 120) errors.push('Invalid date of birth');
     }
 
-    if (!data.ssn && !data.medicaidId) {
-        errors.push('Either SSN or Medicaid ID is required');
+    // Office Ally can work with just Name/DOB for Utah Medicaid eligibility
+    // SSN and Medicaid ID are optional but improve accuracy
+    if (!data.ssn?.trim() && !data.medicaidId?.trim()) {
+        console.log('⚠️ No SSN or Medicaid ID provided - using Name/DOB only lookup (reduced accuracy)');
     }
 
     if (data.ssn) {
