@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Utah Medicaid Eligibility Checker | Live Office Ally Integration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 15px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+        }
+
+        .form-container {
+            padding: 40px;
+        }
+
+        .form-section {
+            margin-bottom: 30px;
+        }
+
+        .form-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        input, select {
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #4CAF50;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+        }
+
+        .check-btn {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .check-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3);
+        }
+
+        .check-btn:active {
+            transform: translateY(0);
+        }
+
+        .check-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results {
+            margin-top: 30px;
+            padding: 25px;
+            border-radius: 12px;
+            display: none;
+        }
+
+        .results.success {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border: 2px solid #28a745;
+        }
+
+        .results.error {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            border: 2px solid #dc3545;
+        }
+
+        .results h3 {
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        .results.success h3 {
+            color: #155724;
+        }
+
+        .results.error h3 {
+            color: #721c24;
+        }
+
+        .result-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .result-item {
+            background: rgba(255, 255, 255, 0.8);
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .result-label {
+            font-weight: 600;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .result-value {
+            color: #333;
+            font-weight: 500;
+            margin-top: 4px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .tech-info {
+            background: #f8f9fa;
+            padding: 20px;
+            margin-top: 30px;
+            border-radius: 12px;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .tech-info h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .tech-info p {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 600px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .result-details {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 Utah Medicaid Eligibility Checker</h1>
+            <p>Real-time eligibility verification powered by Office Ally</p>
+            <div class="status-badge">✅ Live Integration • &lt;1 Second Response</div>
+        </div>
+
+        <div class="form-container">
+            <form id="eligibilityForm">
+                <div class="form-section">
+                    <h3>👤 Patient Information</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="firstName">First Name *</label>
+                            <input type="text" id="firstName" name="firstName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="lastName">Last Name *</label>
+                            <input type="text" id="lastName" name="lastName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="dateOfBirth">Date of Birth *</label>
+                            <input type="date" id="dateOfBirth" name="dateOfBirth" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="gender">Gender</label>
+                            <select id="gender" name="gender">
+                                <option value="U">Unknown</option>
+                                <option value="M">Male</option>
+                                <option value="F">Female</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="ssn">Social Security Number</label>
+                            <input type="text" id="ssn" name="ssn" placeholder="000-00-0000" maxlength="11">
+                        </div>
+                        <div class="form-group">
+                            <label for="medicaidId">Medicaid ID (if known)</label>
+                            <input type="text" id="medicaidId" name="medicaidId">
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="check-btn" id="checkBtn">
+                    ⚡ Check Eligibility Now
+                </button>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Checking eligibility with Office Ally...</p>
+                <p style="font-size: 0.9rem; color: #666;">This typically takes less than 1 second</p>
+            </div>
+
+            <div class="results" id="results">
+                <!-- Results will be populated here -->
+            </div>
+
+            <div class="tech-info">
+                <h4>🚀 Technical Details</h4>
+                <p>
+                    This system uses <strong>Office Ally's real-time clearinghouse</strong> to instantly verify Utah Medicaid eligibility. 
+                    Requests are processed via CAQH CORE-compliant X12 270/271 transactions with sub-second response times.
+                    Each verification costs $0.10 and provides immediate, authoritative eligibility status.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('eligibilityForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('checkBtn').disabled = true;
+            document.getElementById('checkBtn').textContent = 'Checking...';
+            
+            try {
+                const startTime = Date.now();
+                
+                const response = await fetch('/api/medicaid/check', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        first: data.firstName,
+                        last: data.lastName,
+                        dob: data.dateOfBirth,
+                        ssn: data.ssn,
+                        medicaidId: data.medicaidId,
+                        gender: data.gender
+                    })
+                });
+                
+                const result = await response.json();
+                const responseTime = Date.now() - startTime;
+                
+                // Hide loading
+                document.getElementById('loading').style.display = 'none';
+                
+                // Show results
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.style.display = 'block';
+                resultsDiv.className = `results ${result.enrolled ? 'success' : 'error'}`;
+                
+                resultsDiv.innerHTML = `
+                    <h3>${result.enrolled ? '✅ Patient is Enrolled' : '❌ Patient Not Enrolled'}</h3>
+                    <p><strong>${result.enrolled ? result.program : result.error}</strong></p>
+                    
+                    <div class="result-details">
+                        <div class="result-item">
+                            <div class="result-label">Patient Name</div>
+                            <div class="result-value">${data.firstName} ${data.lastName}</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Date of Birth</div>
+                            <div class="result-value">${data.dateOfBirth}</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Response Time</div>
+                            <div class="result-value">${responseTime}ms</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Verification Source</div>
+                            <div class="result-value">${result.verified ? 'Office Ally (Live)' : 'Simulation'}</div>
+                        </div>
+                        ${result.effectiveDate ? `
+                            <div class="result-item">
+                                <div class="result-label">Effective Date</div>
+                                <div class="result-value">${result.effectiveDate}</div>
+                            </div>
+                        ` : ''}
+                        ${result.details ? `
+                            <div class="result-item">
+                                <div class="result-label">Details</div>
+                                <div class="result-value">${result.details}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.style.display = 'block';
+                resultsDiv.className = 'results error';
+                resultsDiv.innerHTML = `
+                    <h3>❌ Error Checking Eligibility</h3>
+                    <p>There was an error processing your request: ${error.message}</p>
+                `;
+            }
+            
+            // Re-enable button
+            document.getElementById('checkBtn').disabled = false;
+            document.getElementById('checkBtn').textContent = '⚡ Check Eligibility Now';
+        });
+
+        // Format SSN input
+        document.getElementById('ssn').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length >= 6) {
+                value = value.substr(0,3) + '-' + value.substr(3,2) + '-' + value.substr(5,4);
+            } else if (value.length >= 4) {
+                value = value.substr(0,3) + '-' + value.substr(3);
+            }
+            e.target.value = value;
+        });
+    </script>
+</body>
+</html>
