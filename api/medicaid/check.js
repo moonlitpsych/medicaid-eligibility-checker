@@ -393,14 +393,30 @@ function parseX12_271(x12Data) {
     }
 }
 
-// Validate patient data
+// Validate patient data - Office Ally Utah Medicaid Requirements
 function validatePatientData(data) {
     const errors = [];
 
+    // REQUIRED: Full name is always required
     if (!data.first?.trim()) errors.push('First name is required');
     if (!data.last?.trim()) errors.push('Last name is required');
-    if (!data.dob) errors.push('Date of birth is required');
 
+    // ACCEPTABLE COMBINATIONS for Utah Medicaid via Office Ally:
+    // 1. Name + DOB (minimum requirement - works but less accurate)
+    // 2. Name + DOB + SSN (preferred)
+    // 3. Name + DOB + Medicaid ID (preferred)
+    // 4. Name + SSN + Medicaid ID (without DOB, less common)
+    
+    const hasDOB = !!data.dob;
+    const hasSSN = !!(data.ssn?.trim());
+    const hasMedicaidId = !!(data.medicaidId?.trim());
+    
+    // Must have at least name + one identifier
+    if (!hasDOB && !hasSSN && !hasMedicaidId) {
+        errors.push('At least one identifier required: Date of Birth, SSN, or Medicaid ID');
+    }
+
+    // Validate DOB if provided
     if (data.dob) {
         const dob = new Date(data.dob);
         const now = new Date();
@@ -408,21 +424,27 @@ function validatePatientData(data) {
         if (now.getFullYear() - dob.getFullYear() > 120) errors.push('Invalid date of birth');
     }
 
-    // Office Ally can work with just Name/DOB for Utah Medicaid eligibility
-    // SSN and Medicaid ID are optional but improve accuracy
-    if (!data.ssn?.trim() && !data.medicaidId?.trim()) {
-        console.log('⚠️ No SSN or Medicaid ID provided - using Name/DOB only lookup (reduced accuracy)');
-    }
-
-    if (data.ssn) {
+    // Validate SSN if provided
+    if (data.ssn?.trim()) {
         const cleanSSN = data.ssn.replace(/\D/g, '');
         if (cleanSSN.length !== 9) errors.push('SSN must be 9 digits');
         if (cleanSSN === '000000000') errors.push('Invalid SSN');
     }
 
-    if (data.medicaidId) {
+    // Validate Medicaid ID if provided  
+    if (data.medicaidId?.trim()) {
         const cleanId = data.medicaidId.replace(/\D/g, '');
-        if (cleanId.length !== 10) errors.push('Utah Medicaid ID must be 10 digits');
+        if (cleanId.length < 8 || cleanId.length > 12) errors.push('Utah Medicaid ID must be 8-12 digits');
+    }
+
+    // Log the combination being used for transparency
+    if (errors.length === 0) {
+        const identifiers = [];
+        if (hasDOB) identifiers.push('DOB');
+        if (hasSSN) identifiers.push('SSN');
+        if (hasMedicaidId) identifiers.push('Medicaid ID');
+        
+        console.log(`✅ Valid combination: Name + ${identifiers.join(' + ')} ${identifiers.length === 1 ? '(minimum accuracy)' : '(good accuracy)'}`);
     }
 
     return { valid: errors.length === 0, errors };
