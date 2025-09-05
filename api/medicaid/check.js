@@ -556,8 +556,13 @@ module.exports = async function handler(req, res) {
         console.log('ELIGIBILITY_PROVIDER:', process.env.ELIGIBILITY_PROVIDER || 'NOT SET');
 
         // Validate input data
+        console.log('🔍 Input data received:', { first, last, dob, ssn: ssn ? 'PROVIDED' : 'MISSING', medicaidId: medicaidId ? 'PROVIDED' : 'MISSING' });
+        
         const validation = validatePatientData({ first, last, dob, ssn, medicaidId });
+        console.log('✅ Validation result:', validation);
+        
         if (!validation.valid) {
+            console.log('❌ Validation failed:', validation.errors);
             return res.status(400).json({
                 enrolled: false,
                 error: validation.errors.join(', '),
@@ -643,9 +648,17 @@ module.exports = async function handler(req, res) {
 
             soapRequest = generateOfficeAllySOAPRequest(x12_270);
             console.log('📡 Sending request to Office Ally...');
-            soapResponse = await sendOfficeAllyRequest(soapRequest);
-            console.log('📨 Received response from Office Ally');
-            x12_271 = parseOfficeAllySOAPResponse(soapResponse);
+            console.log('📋 X12 270 length:', x12_270.length);
+            
+            try {
+                soapResponse = await sendOfficeAllyRequest(soapRequest);
+                console.log('📨 Received response from Office Ally (length:', soapResponse.length, ')');
+                x12_271 = parseOfficeAllySOAPResponse(soapResponse);
+                console.log('✅ X12 271 parsed successfully (length:', x12_271.length, ')');
+            } catch (officeAllyError) {
+                console.error('❌ Office Ally request failed:', officeAllyError.message);
+                throw new Error(`Office Ally API error: ${officeAllyError.message}`);
+            }
         }
 
         // Parse eligibility result (same X12 271 format for both providers)
