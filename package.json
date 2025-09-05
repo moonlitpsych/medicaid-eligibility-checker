@@ -9,7 +9,6 @@
     "backend": "node server.js",
     "backend-dev": "nodemon server.js",
     "vercel-dev": "vercel dev",
-    "vercel-build": "vite build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
