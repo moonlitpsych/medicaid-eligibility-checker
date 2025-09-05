@@ -32,7 +32,7 @@ const OFFICE_ALLY_CONFIG = {
     receiverID: 'OFFALLY', // Office Ally's standard receiver ID
     senderID: '1161680', // Assigned Sender ID from Office Ally
     username: process.env.OFFICE_ALLY_USERNAME || 'moonlit',
-    password: process.env.OFFICE_ALLY_PASSWORD,
+    password: process.env.OFFICE_ALLY_PASSWORD || '***REDACTED-OLD-OA-PASSWORD***', // Fallback for special character issues
     providerNPI: process.env.PROVIDER_NPI || '1275348807',
     providerName: process.env.PROVIDER_NAME || 'MOONLIT_PLLC',
     // Office Ally identifiers
@@ -547,6 +547,13 @@ module.exports = async function handler(req, res) {
         const ELIGIBILITY_PROVIDER = getEligibilityProvider();
         const providerName = ELIGIBILITY_PROVIDER.toUpperCase();
         console.log(`🔍 Checking eligibility for ${first} ${last} via ${providerName}`);
+        
+        // Debug environment variables
+        console.log('🔧 Debug - Environment Variables:');
+        console.log('OFFICE_ALLY_USERNAME:', process.env.OFFICE_ALLY_USERNAME ? 'SET' : 'NOT SET');
+        console.log('OFFICE_ALLY_PASSWORD:', process.env.OFFICE_ALLY_PASSWORD ? 'SET (length: ' + process.env.OFFICE_ALLY_PASSWORD.length + ')' : 'NOT SET');
+        console.log('PROVIDER_NPI:', process.env.PROVIDER_NPI || 'NOT SET');
+        console.log('ELIGIBILITY_PROVIDER:', process.env.ELIGIBILITY_PROVIDER || 'NOT SET');
 
         // Validate input data
         const validation = validatePatientData({ first, last, dob, ssn, medicaidId });
