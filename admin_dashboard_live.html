@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payer Auto-Discovery Admin Dashboard - Live</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .fade-enter-active, .fade-leave-active {
+            transition: opacity 0.3s ease;
+        }
+        .fade-enter-from, .fade-leave-to {
+            opacity: 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="app" class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center py-6">
+                    <div class="flex items-center space-x-3">
+                        <div class="flex space-x-1">
+                            <div class="w-3 h-3 bg-orange-400 rounded-full"></div>
+                            <div class="w-3 h-3 bg-orange-300 rounded-full"></div>
+                        </div>
+                        <div>
+                            <h1 class="text-xl font-semibold text-gray-900">moonlit</h1>
+                            <p class="text-xs text-gray-500 uppercase tracking-wide">PAYER AUTO-DISCOVERY ADMIN</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button @click="loadData" :disabled="loading" 
+                                class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50">
+                            <svg v-if="loading" class="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            {{ loading ? 'Refreshing...' : 'Refresh' }}
+                        </button>
+                        <div class="flex items-center text-sm text-green-600">
+                            <div class="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+                            Live Connection
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Error Message -->
+        <div v-if="error" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="bg-red-50 border border-red-200 rounded-md p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-red-800">Connection Error</h3>
+                        <p class="mt-1 text-sm text-red-700">{{ error }}</p>
+                        <p class="mt-1 text-xs text-red-600">Make sure the Admin API server is running on port 3002</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            <!-- Stats Dashboard -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
+                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Mapped Payers</p>
+                            <p class="text-2xl font-bold text-gray-900">{{ stats.mappedCount }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center">
+                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Pending Review</p>
+                            <p class="text-2xl font-bold text-gray-900">{{ stats.pendingCount }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
+                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Avg. Confidence</p>
+                            <p class="text-2xl font-bold text-gray-900">{{ stats.avgConfidence }}%</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
+                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">This Week</p>
+                            <p class="text-2xl font-bold text-gray-900">{{ stats.weeklyDiscoveries }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="border-b border-gray-200 mb-6">
+                <nav class="-mb-px flex space-x-8">
+                    <button @click="selectedTab = 'pending'"
+                            :class="selectedTab === 'pending' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                        Pending Mappings ({{ stats.pendingCount }})
+                    </button>
+                    <button @click="selectedTab = 'current'"
+                            :class="selectedTab === 'current' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                        Current Mappings ({{ stats.mappedCount }})
+                    </button>
+                    <button @click="selectedTab = 'activity'"
+                            :class="selectedTab === 'activity' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                        Activity Log
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Pending Mappings Tab -->
+            <div v-if="selectedTab === 'pending'">
+                <div class="bg-white shadow overflow-hidden sm:rounded-md">
+                    <div v-if="pendingMappings.length === 0" class="px-6 py-12 text-center">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <h3 class="mt-2 text-sm font-medium text-gray-900">No pending mappings</h3>
+                        <p class="mt-1 text-sm text-gray-500">All payers have been mapped or discovered payers are being processed.</p>
+                    </div>
+                    
+                    <ul v-else class="divide-y divide-gray-200">
+                        <li v-for="mapping in pendingMappings" :key="mapping.id" class="px-6 py-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                                            <svg class="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="flex items-center">
+                                            <p class="text-sm font-medium text-gray-900">{{ mapping.payerId }}</p>
+                                            <span :class="getConfidenceClass(mapping.confidence)" class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                                {{ mapping.confidence }}% match
+                                            </span>
+                                        </div>
+                                        <p class="text-sm text-gray-500">{{ mapping.payerName }}</p>
+                                        <p v-if="mapping.suggestedMatch" class="text-sm text-gray-600">
+                                            → Suggested: <strong>{{ mapping.suggestedMatch.name }}</strong>
+                                        </p>
+                                        <p class="text-xs text-gray-400">Discovered: {{ formatDate(mapping.discoveredAt) }}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <button @click="selectedMapping = mapping" 
+                                            class="text-sm text-blue-600 hover:text-blue-500 font-medium">
+                                        Review
+                                    </button>
+                                    <button @click="approveMapping(mapping)" 
+                                            class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700">
+                                        Approve
+                                    </button>
+                                    <button @click="rejectMapping(mapping)" 
+                                            class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50">
+                                        Reject
+                                    </button>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Current Mappings Tab -->
+            <div v-if="selectedTab === 'current'">
+                <div class="bg-white shadow overflow-hidden sm:rounded-md">
+                    <ul class="divide-y divide-gray-200">
+                        <li v-for="mapping in currentMappings" :key="mapping.payerId" class="px-6 py-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                                            <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="flex items-center">
+                                            <p class="text-sm font-medium text-gray-900">{{ mapping.payerId }}</p>
+                                            <span :class="mapping.type === 'Medicaid' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'"
+                                                  class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                                {{ mapping.type }}
+                                            </span>
+                                        </div>
+                                        <p class="text-sm text-gray-900">{{ mapping.name }}</p>
+                                        <p class="text-xs text-gray-500">
+                                            Aliases: {{ mapping.aliases.join(', ') }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Activity Log Tab -->
+            <div v-if="selectedTab === 'activity'">
+                <div class="bg-white shadow overflow-hidden sm:rounded-md">
+                    <div v-if="activity.length === 0" class="px-6 py-12 text-center">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                        </svg>
+                        <h3 class="mt-2 text-sm font-medium text-gray-900">No recent activity</h3>
+                        <p class="mt-1 text-sm text-gray-500">Discovery activity will appear here as payers are processed.</p>
+                    </div>
+                    
+                    <ul v-else class="divide-y divide-gray-200">
+                        <li v-for="item in activity" :key="item.id" class="px-6 py-4">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"></path>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm text-gray-900">
+                                        <strong>{{ item.payerId }}</strong> discovered with {{ item.confidence }}% confidence
+                                    </p>
+                                    <p class="text-xs text-gray-500">{{ formatDate(item.timestamp) }}</p>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Mapping Detail Modal -->
+        <div v-if="selectedMapping" class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
+            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                    <div class="bg-white px-6 pt-6 pb-4">
+                        <h3 class="text-lg font-medium text-gray-900">Review Payer Mapping</h3>
+                        <div class="mt-4 space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Office Ally Payer ID</label>
+                                <p class="mt-1 text-sm text-gray-900 font-mono">{{ selectedMapping.payerId }}</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Office Ally Payer Name</label>
+                                <p class="mt-1 text-sm text-gray-900">{{ selectedMapping.payerName }}</p>
+                            </div>
+                            <div v-if="selectedMapping.suggestedMatch">
+                                <label class="block text-sm font-medium text-gray-700">Suggested Supabase Match</label>
+                                <p class="mt-1 text-sm text-gray-900">{{ selectedMapping.suggestedMatch.name }}</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Confidence Score</label>
+                                <div class="mt-1 flex items-center">
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div class="bg-blue-600 h-2 rounded-full" :style="`width: ${selectedMapping.confidence}%`"></div>
+                                    </div>
+                                    <span class="ml-2 text-sm text-gray-600">{{ selectedMapping.confidence }}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
+                        <button @click="selectedMapping = null" 
+                                class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                            Close
+                        </button>
+                        <button @click="rejectMapping(selectedMapping)" 
+                                class="px-4 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 bg-white hover:bg-red-50">
+                            Reject
+                        </button>
+                        <button @click="approveMapping(selectedMapping)" 
+                                class="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700">
+                            Approve
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        
+        const API_BASE = 'http://localhost:3002/api/admin';
+        
+        createApp({
+            data() {
+                return {
+                    selectedTab: 'pending',
+                    selectedMapping: null,
+                    pendingMappings: [],
+                    currentMappings: [],
+                    activity: [],
+                    stats: {
+                        mappedCount: 0,
+                        pendingCount: 0,
+                        avgConfidence: 0,
+                        weeklyDiscoveries: 0
+                    },
+                    loading: false,
+                    error: null
+                }
+            },
+            async mounted() {
+                await this.loadData();
+                // Refresh data every 30 seconds
+                setInterval(() => {
+                    this.loadData(true); // Silent refresh
+                }, 30000);
+            },
+            computed: {
+                // Add any computed properties if needed
+            },
+            methods: {
+                async loadData(silent = false) {
+                    if (!silent) {
+                        this.loading = true;
+                    }
+                    this.error = null;
+                    
+                    try {
+                        // Load all data in parallel
+                        const [statsRes, pendingRes, mappingsRes, activityRes] = await Promise.all([
+                            fetch(`${API_BASE}/stats`),
+                            fetch(`${API_BASE}/pending`),
+                            fetch(`${API_BASE}/mappings`),
+                            fetch(`${API_BASE}/activity`)
+                        ]);
+                        
+                        if (!statsRes.ok || !pendingRes.ok || !mappingsRes.ok) {
+                            throw new Error('Failed to fetch data from API');
+                        }
+                        
+                        this.stats = await statsRes.json();
+                        this.pendingMappings = await pendingRes.json();
+                        this.currentMappings = await mappingsRes.json();
+                        this.activity = activityRes.ok ? await activityRes.json() : [];
+                        
+                    } catch (error) {
+                        console.error('Error loading data:', error);
+                        this.error = `Unable to connect to Admin API server. Please make sure it's running on port 3001.`;
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                async approveMapping(mapping) {
+                    try {
+                        const response = await fetch(`${API_BASE}/approve/${mapping.id}`, {
+                            method: 'POST'
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error('Failed to approve mapping');
+                        }
+                        
+                        const result = await response.json();
+                        console.log('✅ Approved:', result);
+                        
+                        // Show the mapping code that should be added
+                        if (result.mappingCode) {
+                            alert(`Mapping approved! Add this to supabase_network_integration.js:\n\n${result.mappingCode}`);
+                        }
+                        
+                        // Remove from pending list and close modal
+                        this.pendingMappings = this.pendingMappings.filter(m => m.id !== mapping.id);
+                        this.selectedMapping = null;
+                        
+                        // Refresh stats
+                        await this.loadData(true);
+                        
+                    } catch (error) {
+                        console.error('Error approving mapping:', error);
+                        alert('Failed to approve mapping. Please try again.');
+                    }
+                },
+                
+                async rejectMapping(mapping) {
+                    try {
+                        const response = await fetch(`${API_BASE}/reject/${mapping.id}`, {
+                            method: 'POST'
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error('Failed to reject mapping');
+                        }
+                        
+                        console.log('❌ Rejected:', mapping.payerId);
+                        
+                        // Remove from pending list and close modal
+                        this.pendingMappings = this.pendingMappings.filter(m => m.id !== mapping.id);
+                        this.selectedMapping = null;
+                        
+                        // Refresh stats
+                        await this.loadData(true);
+                        
+                    } catch (error) {
+                        console.error('Error rejecting mapping:', error);
+                        alert('Failed to reject mapping. Please try again.');
+                    }
+                },
+                
+                getConfidenceClass(confidence) {
+                    if (confidence >= 80) return 'bg-green-100 text-green-800';
+                    if (confidence >= 60) return 'bg-yellow-100 text-yellow-800';
+                    return 'bg-red-100 text-red-800';
+                },
+                
+                formatDate(dateStr) {
+                    return new Date(dateStr).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
