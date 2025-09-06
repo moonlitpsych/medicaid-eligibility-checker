@@ -1,4 +1,5 @@
 // api/medicaid/check.js - UPDATED for UHIN Integration
+const fs = require('fs');
 let pool;
 try {
     const db = require('../_db');
@@ -822,6 +823,20 @@ module.exports = async function handler(req, res) {
                 console.log('📨 Received response from Office Ally (length:', soapResponse.length, ')');
                 x12_271 = parseOfficeAllySOAPResponse(soapResponse);
                 console.log('✅ X12 271 parsed successfully (length:', x12_271.length, ')');
+                
+                // 🔍 RAW X12 271 RESPONSE - For debugging and analysis
+                console.log('\n' + '='.repeat(80));
+                console.log('🔍 RAW X12 271 RESPONSE FROM OFFICE ALLY:');
+                console.log('='.repeat(80));
+                console.log(x12_271);
+                console.log('='.repeat(80) + '\n');
+                
+                // Save raw X12 to file for easy access
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+                const filename = `raw_x12_271_${timestamp}.txt`;
+                fs.writeFileSync(filename, x12_271);
+                console.log(`📄 Raw X12 271 saved to: ${filename}`);
+                
             } catch (officeAllyError) {
                 console.error('❌ Office Ally request failed:', officeAllyError.message);
                 throw new Error(`Office Ally API error: ${officeAllyError.message}`);
@@ -830,6 +845,35 @@ module.exports = async function handler(req, res) {
 
         // Parse eligibility result (same X12 271 format for both providers)
         eligibilityResult = parseX12_271(x12_271);
+        
+        // ✨ ENHANCED: Add network status verification via Supabase cross-reference
+        try {
+            const networkIntegration = require('../../supabase_network_integration');
+            const enhancedResult = await networkIntegration.checkEligibilityWithNetworkStatus(
+                { first, last, dob, state: 'UT' }, 
+                x12_271
+            );
+            
+            // Merge enhanced network data with existing eligibility result
+            eligibilityResult = {
+                ...eligibilityResult,
+                networkStatus: enhancedResult.networkStatus,
+                contractStatus: enhancedResult.contractStatus,
+                contractedPayerName: enhancedResult.contractedPayerName,
+                contractMessage: enhancedResult.contractMessage,
+                canSchedule: enhancedResult.canSchedule,
+                requiresAttending: enhancedResult.requiresAttending,
+                allowsSupervised: enhancedResult.allowsSupervised,
+                officeAllyPayerId: enhancedResult.officeAllyPayerId,
+                officeAllyPayerName: enhancedResult.officeAllyPayerName
+            };
+            
+            console.log(`🎯 Network Status: ${enhancedResult.networkStatus} - ${enhancedResult.contractMessage}`);
+            
+        } catch (networkError) {
+            console.error('⚠️ Network status verification failed:', networkError.message);
+            // Continue without network info rather than failing the whole request
+        }
 
         // Log to database with full audit trail (if available)
         if (pool) {
