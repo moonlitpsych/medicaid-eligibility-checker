@@ -1,0 +1,30 @@
+[
+  {
+    "id": "mapping_002",
+    "payerId": "SELECT_HEALTH",
+    "payerName": "SelectHealth Community Care",
+    "confidence": 72,
+    "discoveredAt": "2025-01-09T16:45:00Z",
+    "suggestedMatch": {
+      "id": "payer_select_001",
+      "name": "SelectHealth Integrated",
+      "state": "UT",
+      "type": "Private",
+      "status_code": "waiting_on_them"
+    }
+  },
+  {
+    "id": "mapping_003",
+    "payerId": "MOLINA_UT",
+    "payerName": "Molina Healthcare of Utah",
+    "confidence": 91,
+    "discoveredAt": "2025-01-08T09:15:00Z",
+    "suggestedMatch": {
+      "id": "payer_molina_001",
+      "name": "Molina Healthcare",
+      "state": "UT",
+      "type": "Private",
+      "status_code": "approved"
+    }
+  }
+]
