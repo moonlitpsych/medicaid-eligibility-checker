@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moonlit - Payer Mapping Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body class="bg-gray-50">
+    <div id="app">
+        <!-- Header -->
+        <header class="bg-white border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center space-x-3">
+                        <!-- Moonlit brand dots -->
+                        <div class="flex space-x-1">
+                            <div class="w-2 h-2 bg-orange-400 rounded-full"></div>
+                            <div class="w-2 h-2 bg-orange-300 rounded-full"></div>
+                        </div>
+                        <div>
+                            <h1 class="text-lg font-medium text-gray-900">moonlit</h1>
+                            <p class="text-xs text-gray-500 uppercase tracking-wide">PAYER MAPPING ADMIN</p>
+                        </div>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        Auto-Discovery System v1.0
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                <span class="text-green-600 font-medium">✓</span>
+                            </div>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Mapped Payers</p>
+                            <p class="text-2xl font-semibold text-gray-900">{{ mappedCount }}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                                <span class="text-yellow-600 font-medium">⏳</span>
+                            </div>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Pending Review</p>
+                            <p class="text-2xl font-semibold text-gray-900">{{ pendingCount }}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                <span class="text-blue-600 font-medium">🧠</span>
+                            </div>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Avg Confidence</p>
+                            <p class="text-2xl font-semibold text-gray-900">{{ avgConfidence }}%</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                                <span class="text-purple-600 font-medium">📊</span>
+                            </div>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">This Week</p>
+                            <p class="text-2xl font-semibold text-gray-900">{{ weeklyCount }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pending Mappings -->
+            <div class="bg-white rounded-lg shadow mb-8">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-medium text-gray-900">Pending Payer Mappings</h2>
+                    <p class="text-sm text-gray-600">Review auto-discovered payers that need your approval</p>
+                </div>
+                <div class="divide-y divide-gray-200">
+                    <div v-if="pendingMappings.length === 0" class="px-6 py-8 text-center text-gray-500">
+                        <div class="text-4xl mb-2">🎉</div>
+                        <p>No pending mappings! The system is running smoothly.</p>
+                    </div>
+                    <div v-for="mapping in pendingMappings" :key="mapping.id" class="px-6 py-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-3">
+                                    <div class="flex-shrink-0">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                            Pending
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-sm font-medium text-gray-900">{{ mapping.officeAllyName }}</h3>
+                                        <p class="text-sm text-gray-600">Office Ally ID: <code class="bg-gray-100 px-2 py-1 rounded">{{ mapping.payerId }}</code></p>
+                                    </div>
+                                </div>
+                                <div class="mt-2 flex items-center space-x-4">
+                                    <div class="text-sm text-gray-600">
+                                        <strong>Suggested match:</strong> {{ mapping.suggestedMatch?.name || 'No match found' }}
+                                    </div>
+                                    <div class="text-sm">
+                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                                              :class="getConfidenceClass(mapping.confidence)">
+                                            {{ mapping.confidence }}% confidence
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="mt-2 text-xs text-gray-500">
+                                    Discovered: {{ formatDate(mapping.discoveredAt) }}
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2 ml-4">
+                                <button @click="approveMappimg(mapping)" 
+                                        :disabled="!mapping.suggestedMatch"
+                                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                                    ✓ Approve
+                                </button>
+                                <button @click="rejectMapping(mapping)" 
+                                        class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                    ✗ Reject
+                                </button>
+                                <button @click="viewDetails(mapping)" 
+                                        class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                    👁 Details
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Mappings -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-medium text-gray-900">Current Payer Mappings</h2>
+                    <p class="text-sm text-gray-600">Active Office Ally → Supabase payer mappings</p>
+                </div>
+                <div class="divide-y divide-gray-200">
+                    <div v-for="mapping in currentMappings" :key="mapping.payerId" class="px-6 py-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-3">
+                                    <div class="flex-shrink-0">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            Active
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-sm font-medium text-gray-900">{{ mapping.name }}</h3>
+                                        <p class="text-sm text-gray-600">Office Ally ID: <code class="bg-gray-100 px-2 py-1 rounded">{{ mapping.payerId }}</code></p>
+                                    </div>
+                                </div>
+                                <div class="mt-2 text-sm text-gray-600">
+                                    <strong>Maps to:</strong> {{ mapping.aliases.join(', ') }}
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2 ml-4">
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                                      :class="mapping.type === 'Medicaid' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'">
+                                    {{ mapping.type }}
+                                </span>
+                                <button @click="editMapping(mapping)" 
+                                        class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                    ✏ Edit
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal for Details -->
+        <div v-if="selectedMapping" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900">Mapping Details</h3>
+                </div>
+                <div class="px-6 py-4">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Office Ally Payer Name</label>
+                            <p class="mt-1 text-sm text-gray-900">{{ selectedMapping.officeAllyName }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Office Ally Payer ID</label>
+                            <p class="mt-1 text-sm text-gray-900 font-mono">{{ selectedMapping.payerId }}</p>
+                        </div>
+                        <div v-if="selectedMapping.suggestedMatch">
+                            <label class="block text-sm font-medium text-gray-700">Suggested Match</label>
+                            <p class="mt-1 text-sm text-gray-900">{{ selectedMapping.suggestedMatch.name }}</p>
+                            <p class="mt-1 text-xs text-gray-600">Contract Status: {{ selectedMapping.suggestedMatch.status_code }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Confidence Score</label>
+                            <div class="mt-1 flex items-center">
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-blue-600 h-2 rounded-full" :style="`width: ${selectedMapping.confidence}%`"></div>
+                                </div>
+                                <span class="ml-2 text-sm text-gray-600">{{ selectedMapping.confidence }}%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+                    <button @click="selectedMapping = null" 
+                            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        Close
+                    </button>
+                    <button @click="approveMappimg(selectedMapping)" 
+                            :disabled="!selectedMapping.suggestedMatch"
+                            class="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-300">
+                        Approve Mapping
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    selectedMapping: null,
+                    pendingMappings: [
+                        // Sample data - replace with real API calls
+                        {
+                            id: 1,
+                            payerId: 'AETNA_UT',
+                            officeAllyName: 'Aetna Better Health Utah',
+                            suggestedMatch: {
+                                name: 'Aetna',
+                                status_code: 'approved'
+                            },
+                            confidence: 87,
+                            discoveredAt: new Date().toISOString()
+                        },
+                        {
+                            id: 2,
+                            payerId: 'SELECT_HEALTH',
+                            officeAllyName: 'SelectHealth Community Care',
+                            suggestedMatch: {
+                                name: 'SelectHealth Integrated',
+                                status_code: 'waiting_on_them'
+                            },
+                            confidence: 72,
+                            discoveredAt: new Date(Date.now() - 86400000).toISOString()
+                        }
+                    ],
+                    currentMappings: [
+                        {
+                            payerId: 'UTMCD',
+                            name: 'Utah Medicaid',
+                            aliases: ['Utah Medicaid Fee-for-Service', 'Utah Medicaid', 'Medicaid Utah'],
+                            type: 'Medicaid'
+                        },
+                        {
+                            payerId: 'REGENCE',
+                            name: 'Regence BlueCross BlueShield',
+                            aliases: ['Regence', 'Regence BCBS'],
+                            type: 'Private'
+                        },
+                        {
+                            payerId: 'CIGNA',
+                            name: 'Cigna',
+                            aliases: ['Cigna Healthcare'],
+                            type: 'Private'
+                        },
+                        {
+                            payerId: 'TRICARE',
+                            name: 'TriCare West',
+                            aliases: ['TriWest', 'TRICARE West'],
+                            type: 'Private'
+                        }
+                    ]
+                }
+            },
+            computed: {
+                mappedCount() {
+                    return this.currentMappings.length;
+                },
+                pendingCount() {
+                    return this.pendingMappings.length;
+                },
+                avgConfidence() {
+                    if (this.pendingMappings.length === 0) return 0;
+                    const sum = this.pendingMappings.reduce((acc, m) => acc + m.confidence, 0);
+                    return Math.round(sum / this.pendingMappings.length);
+                },
+                weeklyCount() {
+                    return this.pendingMappings.length + 3; // Sample data
+                }
+            },
+            methods: {
+                getConfidenceClass(confidence) {
+                    if (confidence >= 80) return 'bg-green-100 text-green-800';
+                    if (confidence >= 60) return 'bg-yellow-100 text-yellow-800';
+                    return 'bg-red-100 text-red-800';
+                },
+                formatDate(dateStr) {
+                    return new Date(dateStr).toLocaleDateString();
+                },
+                approveMappimg(mapping) {
+                    // In real implementation, this would call your API
+                    console.log('Approving mapping:', mapping);
+                    alert(`Approved mapping: ${mapping.payerId} → ${mapping.suggestedMatch?.name}`);
+                    this.pendingMappings = this.pendingMappings.filter(m => m.id !== mapping.id);
+                    this.selectedMapping = null;
+                },
+                rejectMapping(mapping) {
+                    console.log('Rejecting mapping:', mapping);
+                    alert(`Rejected mapping for: ${mapping.payerId}`);
+                    this.pendingMappings = this.pendingMappings.filter(m => m.id !== mapping.id);
+                },
+                viewDetails(mapping) {
+                    this.selectedMapping = mapping;
+                },
+                editMapping(mapping) {
+                    console.log('Editing mapping:', mapping);
+                    alert(`Edit functionality for ${mapping.payerId} - Coming soon!`);
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

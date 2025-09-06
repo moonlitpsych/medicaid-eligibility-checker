@@ -186,37 +186,15 @@
           <!-- Coverage Details -->
           <div class="bg-green-50 border border-green-200 rounded-xl p-6 mb-6">
             <h4 class="font-semibold text-green-800 mb-3">Your Coverage Status</h4>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <div class="text-sm font-medium text-green-700">Insurance Plan</div>
-                <div class="text-green-900 font-medium">{{ result.contractedPayerName || result.program || result.insuranceName }}</div>
-              </div>
-              <div>
-                <div class="text-sm font-medium text-green-700">Network Status</div>
-                <div class="flex items-center">
-                  <span v-if="result.networkStatus === 'in_network'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    ✅ In-Network
-                  </span>
-                  <span v-else-if="result.networkStatus === 'pending_activation'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    ⏳ Contract Active Soon
-                  </span>
-                  <span v-else-if="result.networkStatus === 'pending_approval'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    ⏳ Contract Pending
-                  </span>
-                  <span v-else class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    ✅ Accepted
-                  </span>
-                </div>
+                <div class="text-green-900 font-medium">{{ result.program || result.insuranceName }}</div>
               </div>
               <div>
                 <div class="text-sm font-medium text-green-700">Coverage Status</div>
-                <div class="text-green-900 font-medium">{{ result.enrolled ? 'Active' : 'Inactive' }}</div>
+                <div class="text-green-900 font-medium">{{ result.coverageStatus || 'Active and Accepted' }}</div>
               </div>
-            </div>
-            
-            <!-- Enhanced Network Message -->
-            <div v-if="result.contractMessage" class="mt-4 p-3 bg-green-100 border border-green-200 rounded-lg">
-              <p class="text-sm text-green-800">{{ result.contractMessage }}</p>
             </div>
           </div>
 
