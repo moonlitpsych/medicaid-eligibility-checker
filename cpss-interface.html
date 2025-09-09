@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CPSS Eligibility Check | Utah Medicaid CM Program</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .moonlit-gradient { background: linear-gradient(135deg, #BF9C73 0%, #8B7355 100%); }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-stone-50 via-orange-50/30 to-stone-100">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-100 shadow-sm">
+        <div class="max-w-4xl mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="flex space-x-1">
+                        <div class="w-2 h-2 bg-orange-400 rounded-full"></div>
+                        <div class="w-2 h-2 bg-orange-300 rounded-full"></div>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-semibold text-gray-900">moonlit</h1>
+                        <p class="text-xs text-gray-500 uppercase tracking-wide">CPSS ELIGIBILITY CHECKER</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div class="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                        ✓ Office Ally Live Integration
+                    </div>
+                    <div class="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                        Crisis Peer Support Specialist
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="max-w-4xl mx-auto px-6 py-8">
+        <!-- Instructions -->
+        <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mb-8">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-amber-700">
+                        <strong>CPSS Instructions:</strong> Use this tool to check if patients in the ED qualify for the Utah Medicaid CM Program. 
+                        Only <strong>Traditional Medicaid FFS</strong> patients are eligible (not managed care plans like Molina, SelectHealth, or Anthem).
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Eligibility Form -->
+        <div class="bg-white rounded-2xl shadow-xl p-8">
+            <h2 class="text-2xl font-bold text-slate-800 mb-6">Patient Eligibility Check</h2>
+            
+            <form id="eligibilityForm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label for="firstName" class="block text-sm font-medium text-slate-700 mb-2">
+                            First Name *
+                        </label>
+                        <input
+                            id="firstName"
+                            type="text"
+                            required
+                            class="w-full bg-stone-50 border-2 border-stone-200 rounded-xl py-3 px-4 text-slate-800 focus:outline-none focus:border-orange-300 focus:bg-white transition-all duration-200"
+                            placeholder="Patient's first name"
+                        >
+                    </div>
+                    <div>
+                        <label for="lastName" class="block text-sm font-medium text-slate-700 mb-2">
+                            Last Name *
+                        </label>
+                        <input
+                            id="lastName"
+                            type="text"
+                            required
+                            class="w-full bg-stone-50 border-2 border-stone-200 rounded-xl py-3 px-4 text-slate-800 focus:outline-none focus:border-orange-300 focus:bg-white transition-all duration-200"
+                            placeholder="Patient's last name"
+                        >
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label for="dob" class="block text-sm font-medium text-slate-700 mb-2">
+                            Date of Birth *
+                        </label>
+                        <input
+                            id="dob"
+                            type="date"
+                            required
+                            class="w-full bg-stone-50 border-2 border-stone-200 rounded-xl py-3 px-4 text-slate-800 focus:outline-none focus:border-orange-300 focus:bg-white transition-all duration-200"
+                        >
+                    </div>
+                    <div>
+                        <label for="medicaidId" class="block text-sm font-medium text-slate-700 mb-2">
+                            Utah Medicaid ID
+                            <span class="text-xs text-gray-500">(if available - improves accuracy)</span>
+                        </label>
+                        <input
+                            id="medicaidId"
+                            type="text"
+                            class="w-full bg-stone-50 border-2 border-stone-200 rounded-xl py-3 px-4 text-slate-800 focus:outline-none focus:border-orange-300 focus:bg-white transition-all duration-200"
+                            placeholder="e.g., 0900412827"
+                        >
+                    </div>
+                </div>
+
+                <button
+                    type="submit"
+                    id="checkButton"
+                    class="w-full moonlit-gradient text-white font-semibold py-4 px-6 rounded-xl hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:ring-offset-2"
+                >
+                    Check Eligibility
+                </button>
+            </form>
+        </div>
+
+        <!-- Test Patient Quick Fill -->
+        <div class="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <h3 class="text-sm font-semibold text-blue-800 mb-2">Test Patient (Jeremy Montoya)</h3>
+            <p class="text-xs text-blue-700 mb-3">Click to auto-fill with known enrolled patient data:</p>
+            <button
+                type="button"
+                onclick="fillTestData()"
+                class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            >
+                Fill Test Data
+            </button>
+        </div>
+
+        <!-- Results Area -->
+        <div id="results" class="mt-8 hidden"></div>
+    </div>
+
+    <script>
+        // Fill test data
+        function fillTestData() {
+            document.getElementById('firstName').value = 'Jeremy';
+            document.getElementById('lastName').value = 'Montoya';
+            document.getElementById('dob').value = '1984-07-17';
+            document.getElementById('medicaidId').value = '0900412827';
+        }
+
+        // Handle form submission
+        document.getElementById('eligibilityForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const button = document.getElementById('checkButton');
+            const results = document.getElementById('results');
+            
+            // Show loading state
+            button.innerHTML = 'Checking Eligibility...';
+            button.disabled = true;
+            results.classList.add('hidden');
+            
+            try {
+                const formData = {
+                    first: document.getElementById('firstName').value.trim(),
+                    last: document.getElementById('lastName').value.trim(),
+                    dob: document.getElementById('dob').value,
+                    medicaidId: document.getElementById('medicaidId').value.trim() || null
+                };
+                
+                const response = await fetch('http://localhost:3000/api/medicaid/check', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                displayResults(data);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                displayError('Unable to connect to eligibility system. Please check that the API server is running on port 3000.');
+            } finally {
+                button.innerHTML = 'Check Eligibility';
+                button.disabled = false;
+            }
+        });
+        
+        function displayResults(data) {
+            const results = document.getElementById('results');
+            
+            if (data.enrolled) {
+                results.innerHTML = `
+                    <div class="bg-green-50 border border-green-200 rounded-xl p-6">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <svg class="h-6 w-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-lg font-semibold text-green-800">✅ QUALIFIES FOR CM PROGRAM</h3>
+                                <div class="mt-2 text-sm text-green-700">
+                                    <p><strong>Program:</strong> ${data.program}</p>
+                                    <p><strong>Plan Type:</strong> ${data.planType}</p>
+                                    ${data.medicaidId ? `<p><strong>Medicaid ID:</strong> ${data.medicaidId}</p>` : ''}
+                                </div>
+                                
+                                ${data.coverage && data.coverage.length > 0 ? `
+                                    <div class="mt-4">
+                                        <h4 class="font-medium text-green-800 mb-2">Coverage Details:</h4>
+                                        <div class="space-y-1">
+                                            ${data.coverage.slice(0, 5).map(cov => `
+                                                <div class="text-xs text-green-600">
+                                                    • ${cov.planDescription} (${cov.status})
+                                                </div>
+                                            `).join('')}
+                                            ${data.coverage.length > 5 ? `<div class="text-xs text-green-600">... and ${data.coverage.length - 5} more</div>` : ''}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                
+                                <div class="mt-4 p-3 bg-green-100 rounded-lg">
+                                    <p class="text-sm text-green-800"><strong>Next Steps:</strong> Patient is eligible for the Utah Medicaid CM Program. Proceed with enrollment and consent process.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                const isError = data.error && data.error !== '';
+                const bgColor = isError ? 'red' : 'yellow';
+                const textColor = isError ? 'red' : 'yellow';
+                const icon = isError ? 'M6 18L18 6M6 6l12 12' : 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.98-.833-2.75 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z';
+                
+                results.innerHTML = `
+                    <div class="bg-${bgColor}-50 border border-${bgColor}-200 rounded-xl p-6">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <svg class="h-6 w-6 text-${textColor}-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${icon}" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-lg font-semibold text-${textColor}-800">${isError ? '❌ ERROR' : '⚠️ NOT QUALIFIED'}</h3>
+                                <div class="mt-2 text-sm text-${textColor}-700">
+                                    <p>${data.error || 'Patient does not qualify for the CM program'}</p>
+                                </div>
+                                
+                                <div class="mt-4 p-3 bg-${bgColor}-100 rounded-lg">
+                                    <p class="text-sm text-${textColor}-800">
+                                        <strong>Recommendation:</strong> 
+                                        ${isError 
+                                            ? 'Check patient information and try again. If problem persists, verify manually via PRISM system.'
+                                            : 'Patient may have managed care (not Traditional FFS) or no active Medicaid coverage. Consider alternative resources or verify via PRISM system.'
+                                        }
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            results.classList.remove('hidden');
+        }
+        
+        function displayError(message) {
+            const results = document.getElementById('results');
+            results.innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-xl p-6">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <svg class="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-lg font-semibold text-red-800">Connection Error</h3>
+                            <p class="mt-2 text-sm text-red-700">${message}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            results.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
