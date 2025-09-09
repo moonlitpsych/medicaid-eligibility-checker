@@ -16,8 +16,8 @@ const OFFICE_ALLY_CONFIG = {
     password: process.env.OFFICE_ALLY_PASSWORD || '***REDACTED-OLD-OA-PASSWORD***',
     senderID: '1161680',
     receiverID: 'OFFALLY',
-    providerNPI: '1275348807',
-    providerName: 'MOONLIT PLLC'
+    providerNPI: '1124778121',  // Travis Norseth - enrolled with Aetna
+    providerName: 'TRAVIS NORSETH'
 };
 
 // Comprehensive Aetna Payer ID Directory (from Office Ally official list)
@@ -133,6 +133,20 @@ function generateSOAPRequest(x12Payload) {
 </soapenv:Envelope>`;
 }
 
+// Parse 999 error details
+function parse999(x12) {
+    const segs = x12.split('~');
+    const errs = [];
+    for (const s of segs) {
+        if (s.startsWith('IK3*') || s.startsWith('AK3*')) errs.push(`SEGMENT ERROR: ${s}`);
+        if (s.startsWith('IK4*') || s.startsWith('AK4*')) errs.push(`ELEMENT ERROR: ${s}`);
+        if (s.startsWith('IK5*') || s.startsWith('AK5*')) errs.push(`TXN SET ACK: ${s}`);
+        if (s.startsWith('AK9*')) errs.push(`FUNCTIONAL GROUP ACK: ${s}`);
+        if (s.startsWith('AAA*')) errs.push(`APPLICATION ERROR: ${s}`);
+    }
+    return errs;
+}
+
 // Parse X12 271 response for any payer
 function parseEligibilityResponse(x12_271, payerName) {
     try {
@@ -142,13 +156,32 @@ function parseEligibilityResponse(x12_271, payerName) {
             payer: payerName,
             responseTime: 0,
             error: '',
-            copayInfo: null
+            copayInfo: null,
+            x12Details: null
         };
 
         // Check for X12 271 transaction
         if (!x12_271.includes('ST*271*')) {
-            result.error = 'Invalid X12 271 response format';
-            return result;
+            // Check if it's a 999 error response
+            if (x12_271.includes('999')) {
+                const errorDetails = parse999(x12_271);
+                result.error = 'X12 999 validation error';
+                result.x12Details = {
+                    responseType: '999',
+                    errorDetails: errorDetails,
+                    rawResponse: x12_271.substring(0, 300) + '...'
+                };
+                console.log('🔍 999 ERROR DETAILS:');
+                if (errorDetails.length > 0) {
+                    errorDetails.forEach(err => console.log('   ' + err));
+                } else {
+                    console.log('   No specific error segments found');
+                }
+                return result;
+            } else {
+                result.error = 'Invalid X12 271 response format';
+                return result;
+            }
         }
 
         // Parse eligibility benefits (EB segments)
