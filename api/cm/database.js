@@ -5,14 +5,25 @@ const { createClient } = require('@supabase/supabase-js');
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.warn('⚠️ Supabase credentials not found in environment variables');
-}
+let supabase = null;
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.warn('⚠️ Supabase credentials not found in environment variables - CM features will be disabled');
+} else {
+  try {
+    supabase = createClient(supabaseUrl, supabaseServiceKey);
+  } catch (error) {
+    console.warn('⚠️ Failed to initialize Supabase client:', error.message);
+  }
+}
 
 // Initialize CM Database - Check if tables exist and get default program
 async function initializeCMDatabase() {
+  if (!supabase) {
+    console.warn('⚠️ Supabase not available - skipping CM database initialization');
+    return { success: false, error: 'Supabase not configured' };
+  }
+  
   try {
     // Check if CM tables exist by querying the default program
     const { data, error } = await supabase

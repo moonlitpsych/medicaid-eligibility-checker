@@ -4,23 +4,10 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { pool } = require('./api/_db');
-
-// CM imports with error handling
-let cmPointsRouter = null;
-let canonicalPointsRouter = null;
-let initializeCMDatabase = null;
-let initializeCMDatabaseCanonical = null;
-
-try {
-    initializeCMDatabase = require('./api/cm/database').initializeCMDatabase;
-    initializeCMDatabaseCanonical = require('./api/cm/database-canonical').initializeCMDatabaseCanonical;
-    cmPointsRouter = require('./api/cm/points');
-    canonicalPointsRouter = require('./api/cm/points-canonical');
-    console.log('✅ CM modules loaded successfully');
-} catch (error) {
-    console.warn('⚠️ CM modules failed to load:', error.message);
-    console.warn('   CM features will be disabled');
-}
+const { initializeCMDatabase } = require('./api/cm/database');
+const { initializeCMDatabaseCanonical } = require('./api/cm/database-canonical');
+const cmPointsRouter = require('./api/cm/points');
+const canonicalPointsRouter = require('./api/cm/points-canonical');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -683,110 +670,34 @@ app.get('/api/universal-eligibility/payer/:payerId/config', (req, res) => {
 
 // === DATABASE-DRIVEN ELIGIBILITY API ===
 // Import the database-driven handlers
-let handleDatabaseDrivenEligibilityCheck = null;
-let handleGetPayers = null;
-let handleGetPayerConfig = null;
-
-try {
-    console.log('🔍 Importing database-driven routes...');
-    const databaseRoutes = require('./database-driven-api-routes');
-    handleDatabaseDrivenEligibilityCheck = databaseRoutes.handleDatabaseDrivenEligibilityCheck;
-    handleGetPayers = databaseRoutes.handleGetPayers;
-    handleGetPayerConfig = databaseRoutes.handleGetPayerConfig;
-    console.log('✅ Database-driven routes imported successfully');
-    console.log('   Available functions:', Object.keys(databaseRoutes));
-} catch (error) {
-    console.error('❌ Failed to import database-driven routes:', error.message);
-    console.error('   Database eligibility features will be disabled');
-}
+const {
+    handleDatabaseDrivenEligibilityCheck,
+    handleGetPayers,
+    handleGetPayerConfig
+} = require('./database-driven-api-routes');
 
 // Database-driven eligibility check endpoint (uses Supabase configurations)
-if (handleDatabaseDrivenEligibilityCheck) {
-    app.post('/api/database-eligibility/check', handleDatabaseDrivenEligibilityCheck);
-    console.log('✅ Database eligibility check route registered');
-} else {
-    console.log('⚠️ Database eligibility check route skipped (handler not available)');
-}
+app.post('/api/database-eligibility/check', handleDatabaseDrivenEligibilityCheck);
 
 // Get available payers from Supabase database
-if (handleGetPayers) {
-    app.get('/api/database-eligibility/payers', handleGetPayers);
-    console.log('✅ Database payers route registered');
-} else {
-    console.log('⚠️ Database payers route skipped (handler not available)');
-}
+app.get('/api/database-eligibility/payers', handleGetPayers);
 
 // Get form configuration for a specific payer from Supabase database  
-if (handleGetPayerConfig) {
-    app.get('/api/database-eligibility/payer/:payerId/config', handleGetPayerConfig);
-    console.log('✅ Database payer config route registered');
-} else {
-    console.log('⚠️ Database payer config route skipped (handler not available)');
-}
-
-// Test route to debug registration
-app.get('/api/test-route', (req, res) => {
-    res.json({ message: 'Test route working!', timestamp: new Date().toISOString() });
-});
-console.log('✅ Test route registered at /api/test-route');
-
-// Test database handler directly
-app.get('/api/test-database', async (req, res) => {
-    try {
-        if (handleGetPayers) {
-            console.log('🧪 Testing handleGetPayers directly...');
-            // Create mock req/res and test the handler
-            const mockReq = {};
-            const mockRes = {
-                json: (data) => {
-                    console.log('✅ handleGetPayers returned data');
-                    res.json({ ...data, testedDirectly: true });
-                },
-                status: (code) => ({
-                    json: (data) => {
-                        console.log(`⚠️ handleGetPayers returned status ${code}`);
-                        res.status(code).json({ ...data, testedDirectly: true });
-                    }
-                })
-            };
-            await handleGetPayers(mockReq, mockRes);
-        } else {
-            res.status(500).json({ error: 'handleGetPayers not available' });
-        }
-    } catch (error) {
-        console.error('❌ Direct database handler test failed:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-console.log('✅ Test database handler route registered at /api/test-database');
+app.get('/api/database-eligibility/payer/:payerId/config', handleGetPayerConfig);
 
 // CM (Contingency Management) Routes - Canonical Architecture
-if (canonicalPointsRouter) {
-    app.use('/api/cm', canonicalPointsRouter);
-    console.log('✅ CM canonical routes enabled');
-} else {
-    console.log('⚠️ CM canonical routes disabled (module failed to load)');
-}
+app.use('/api/cm', canonicalPointsRouter);
 
 // Legacy CM Routes (for backward compatibility during transition)
-if (cmPointsRouter) {
-    app.use('/api/cm-legacy', cmPointsRouter);
-    console.log('✅ CM legacy routes enabled');
-} else {
-    console.log('⚠️ CM legacy routes disabled (module failed to load)');
-}
+app.use('/api/cm-legacy', cmPointsRouter);
 
 // Initialize CM database on server start
 async function startServer() {
-    if (initializeCMDatabaseCanonical) {
-        try {
-            await initializeCMDatabaseCanonical();
-            console.log('✅ CM Canonical Database initialized successfully');
-        } catch (error) {
-            console.error('❌ Failed to initialize CM database:', error);
-        }
-    } else {
-        console.log('⚠️ CM database initialization skipped (module not available)');
+    try {
+        await initializeCMDatabaseCanonical();
+        console.log('✅ CM Canonical Database initialized successfully');
+    } catch (error) {
+        console.error('❌ Failed to initialize CM database:', error);
     }
     
     app.listen(PORT, () => {
