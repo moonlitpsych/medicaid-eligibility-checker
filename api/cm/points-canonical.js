@@ -651,10 +651,10 @@ router.get('/metrics/realtime', async (req, res) => {
   }
 });
 
-// CPSS performance analytics
-router.get('/analytics/cpss/:cpssId?', async (req, res) => {
+// CPSS performance analytics - all CPSS
+router.get('/analytics/cpss', async (req, res) => {
   try {
-    const { cpssId } = req.params;
+    const cpssId = null;
     const { period = '7d' } = req.query;
     
     const analytics = {
@@ -695,6 +695,38 @@ router.get('/analytics/cpss/:cpssId?', async (req, res) => {
   } catch (error) {
     console.error('Error getting CPSS analytics:', error);
     res.status(500).json({ error: 'Failed to get CPSS analytics' });
+  }
+});
+
+// CPSS performance analytics - specific CPSS
+router.get('/analytics/cpss/:cpssId', async (req, res) => {
+  try {
+    const { cpssId } = req.params;
+    const { period = '7d' } = req.query;
+    
+    const analytics = {
+      success: true,
+      period,
+      cpssPerformance: [
+        {
+          id: cpssId,
+          name: 'Specific CPSS',
+          certification: 'CPSS-I',
+          performance: {
+            sessionsThisWeek: 18,
+            uniquePatientsServed: 12,
+            averageSessionLength: 45,
+            completionRate: 0.89,
+            patientSatisfaction: 4.7
+          }
+        }
+      ]
+    };
+    
+    res.json(analytics);
+  } catch (error) {
+    console.error('Error getting specific CPSS analytics:', error);
+    res.status(500).json({ error: 'Failed to get specific CPSS analytics' });
   }
 });
 
