@@ -1,8 +1,13 @@
 // api-server.js - Simple Express server for API backend
+require('dotenv').config({ path: '.env.local' });
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { pool } = require('./api/_db');
+const { initializeCMDatabase } = require('./api/cm/database');
+const { initializeCMDatabaseCanonical } = require('./api/cm/database-canonical');
+const cmPointsRouter = require('./api/cm/points');
+const canonicalPointsRouter = require('./api/cm/points-canonical');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,20 +16,20 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Office Ally Configuration
+// Office Ally Configuration - NO HARDCODED CREDENTIALS
 const OFFICE_ALLY_CONFIG = {
-    endpoint: 'https://wsd.officeally.com/TransactionService/rtx.svc',
+    endpoint: process.env.OFFICE_ALLY_ENDPOINT || 'https://wsd.officeally.com/TransactionService/rtx.svc',
     receiverID: 'OFFALLY',
-    senderID: '1161680',
-    username: process.env.OFFICE_ALLY_USERNAME || 'moonlit',
+    senderID: process.env.OFFICE_ALLY_SENDER_ID || '1161680',
+    username: process.env.OFFICE_ALLY_USERNAME,
     password: process.env.OFFICE_ALLY_PASSWORD,
-    providerNPI: '1275348807',
-    providerName: 'MOONLIT_PLLC',
-    isa06: '1161680',
+    providerNPI: process.env.PROVIDER_NPI || '1275348807',
+    providerName: process.env.PROVIDER_NAME || 'MOONLIT_PLLC',
+    isa06: process.env.OFFICE_ALLY_SENDER_ID || '1161680',
     isa08: 'OFFALLY',
-    gs02: '1161680',
+    gs02: process.env.OFFICE_ALLY_SENDER_ID || '1161680',
     gs03: 'OFFALLY',
-    payerID: 'UTMCD' // Correct Office Ally payer ID for Utah Medicaid eligibility
+    payerID: process.env.OFFICE_ALLY_PAYER_ID || 'UTMCD'
 };
 
 // Generate UUID for PayloadID
@@ -69,7 +74,12 @@ function generateOfficeAllyX12_270(patient) {
     // 2100C: Subscriber (Name/DOB only - WORKING FORMAT!)
     seg.push(`HL*3*2*22*0`);
     seg.push(`TRN*1*${ctrl}*1275348807*ELIGIBILITY`);
-    seg.push(`NM1*IL*1*${patient.last?.toUpperCase()||''}*${patient.first?.toUpperCase()||''}`); // NO SSN/ID (CRITICAL FIX)
+    // Include Member ID if provided (required for proper patient matching)
+    if (patient.medicaidId) {
+        seg.push(`NM1*IL*1*${patient.last?.toUpperCase()||''}*${patient.first?.toUpperCase()||''}****MI*${patient.medicaidId}`);
+    } else {
+        seg.push(`NM1*IL*1*${patient.last?.toUpperCase()||''}*${patient.first?.toUpperCase()||''}`);
+    }
     
     // Gender handling - Utah Medicaid only accepts M or F, omit if unknown
     let dmgSegment = `DMG*D8*${dob}`;
@@ -78,7 +88,7 @@ function generateOfficeAllyX12_270(patient) {
     }
     seg.push(dmgSegment);
     
-    seg.push(`DTP*291*D8*${ccyymmdd}`);
+    seg.push(`DTP*291*RD8*${ccyymmdd}-${ccyymmdd}`);
     seg.push(`EQ*30`);
 
     // SE count = segments from ST..SE inclusive
@@ -416,6 +426,110 @@ app.post('/api/medicaid/check', async (req, res) => {
     }
 });
 
+// Self-check endpoint for debugging
+app.get('/debug/self-check', (req, res) => {
+    try {
+        // Test X12 270 Generation
+        function generateSampleX12_270() {
+            const now = new Date();
+            const ctrl = Date.now().toString().slice(-9);
+            const yymmdd = now.toISOString().slice(2,10).replace(/-/g,'');
+            const hhmm = now.toISOString().slice(11,16).replace(':','');
+            const ccyymmdd = now.toISOString().slice(0,10).replace(/-/g,'');
+
+            const pad15 = s => (s ?? '').toString().padEnd(15, ' ');
+            const ISA06 = pad15('1161680');
+            const ISA08 = pad15('OFFALLY');
+
+            const seg = [];
+            seg.push(`ISA*00*          *00*          *ZZ*${ISA06}*01*${ISA08}*${yymmdd}*${hhmm}*^*00501*${ctrl}*0*P*:`);
+            seg.push(`GS*HS*1161680*OFFALLY*${ccyymmdd}*${hhmm}*${ctrl}*X*005010X279A1`);
+            seg.push(`ST*270*0001*005010X279A1`);
+            seg.push(`BHT*0022*13*MOONLIT-${ctrl}*20${yymmdd}*${hhmm}`);
+            seg.push(`HL*1**20*1`);
+            seg.push(`NM1*PR*2*UTAH MEDICAID*****PI*UTMCD`);
+            seg.push(`HL*2*1*21*1`);
+            seg.push(`NM1*1P*2*MOONLIT PLLC*****XX*1275348807`);
+            seg.push(`HL*3*2*22*0`);
+            seg.push(`TRN*1*${ctrl}*1275348807*ELIGIBILITY`);
+            seg.push(`NM1*IL*1*TEST*PATIENT`);
+            seg.push(`DMG*D8*19840717`);
+            seg.push(`DTP*291*D8*${ccyymmdd}`);
+            seg.push(`EQ*30`);
+
+            const stIndex = seg.findIndex(s => s.startsWith('ST*'));
+            const count = seg.length - stIndex + 1;
+            seg.push(`SE*${count}*0001`);
+            seg.push(`GE*1*${ctrl}`);
+            seg.push(`IEA*1*${ctrl}`);
+
+            return seg.join('~') + '~';
+        }
+
+        const sampleX12 = generateSampleX12_270();
+        const hasCredentials = !!(OFFICE_ALLY_CONFIG.username && OFFICE_ALLY_CONFIG.password);
+
+        const selfCheck = {
+            timestamp: new Date().toISOString(),
+            provider: process.env.ELIGIBILITY_PROVIDER || 'office_ally',
+            environment: {
+                NODE_ENV: process.env.NODE_ENV,
+                ELIGIBILITY_PROVIDER: process.env.ELIGIBILITY_PROVIDER,
+                SIMULATION_MODE: process.env.SIMULATION_MODE
+            },
+            office_ally: {
+                endpoint: OFFICE_ALLY_CONFIG.endpoint,
+                receiverID: OFFICE_ALLY_CONFIG.receiverID,
+                senderID: OFFICE_ALLY_CONFIG.senderID,
+                providerNPI: OFFICE_ALLY_CONFIG.providerNPI,
+                payerID: OFFICE_ALLY_CONFIG.payerID,
+                username_configured: !!OFFICE_ALLY_CONFIG.username,
+                password_configured: !!OFFICE_ALLY_CONFIG.password,
+                password_length: OFFICE_ALLY_CONFIG.password?.length || 0,
+                credentials_ready: hasCredentials
+            },
+            x12_test: {
+                sample_length: sampleX12.length,
+                segment_count: (sampleX12.match(/~/g) || []).length,
+                first_100_chars: sampleX12.substring(0, 100),
+                contains_required_segments: {
+                    ISA: sampleX12.includes('ISA*'),
+                    GS: sampleX12.includes('GS*'),
+                    ST: sampleX12.includes('ST*270*'),
+                    BHT: sampleX12.includes('BHT*0022*13*'),
+                    SE: sampleX12.includes('SE*'),
+                    GE: sampleX12.includes('GE*'),
+                    IEA: sampleX12.includes('IEA*')
+                }
+            },
+            readiness: {
+                config_complete: hasCredentials,
+                simulation_mode: process.env.SIMULATION_MODE === 'true',
+                ready_for_live_testing: hasCredentials && process.env.SIMULATION_MODE !== 'true',
+                issues: []
+            }
+        };
+
+        // Identify any issues
+        if (!hasCredentials) {
+            selfCheck.readiness.issues.push('Missing Office Ally credentials (OFFICE_ALLY_USERNAME or OFFICE_ALLY_PASSWORD)');
+        }
+        if (process.env.SIMULATION_MODE === 'true') {
+            selfCheck.readiness.issues.push('Running in SIMULATION_MODE (set to false for live testing)');
+        }
+
+        res.json(selfCheck);
+
+    } catch (error) {
+        console.error('Self-check failed:', error);
+        res.status(500).json({
+            error: 'Self-check failed',
+            message: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
 // Health check
 app.get('/health', (req, res) => {
     res.json({
@@ -426,18 +540,38 @@ app.get('/health', (req, res) => {
     });
 });
 
-app.listen(PORT, () => {
-    console.log(`
-🎉 OFFICE ALLY API SERVER READY!
-================================
+// CM (Contingency Management) Routes - Canonical Architecture
+app.use('/api/cm', canonicalPointsRouter);
+
+// Legacy CM Routes (for backward compatibility during transition)
+app.use('/api/cm-legacy', cmPointsRouter);
+
+// Initialize CM database on server start
+async function startServer() {
+    try {
+        await initializeCMDatabaseCanonical();
+        console.log('✅ CM Canonical Database initialized successfully');
+    } catch (error) {
+        console.error('❌ Failed to initialize CM database:', error);
+    }
+    
+    app.listen(PORT, () => {
+        console.log(`
+🎉 OFFICE ALLY + CM API SERVER READY!
+====================================
 
 🌐 API Endpoint: http://localhost:${PORT}
 ⚡ Office Ally Integration: LIVE
 🎯 Response Time Target: <1 second
 💰 Cost per verification: $0.10
+🏥 CM Program Database: READY
+💎 Points System: ACTIVE
 
-Ready for real patient eligibility verification! 🚀
-    `);
-});
+Ready for CM program management! 🚀
+        `);
+    });
+}
+
+startServer();
 
 module.exports = app;

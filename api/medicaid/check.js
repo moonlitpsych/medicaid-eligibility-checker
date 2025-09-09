@@ -31,17 +31,17 @@ const UHIN_CONFIG = {
 const OFFICE_ALLY_CONFIG = {
     endpoint: process.env.OFFICE_ALLY_ENDPOINT || 'https://wsd.officeally.com/TransactionService/rtx.svc',
     receiverID: 'OFFALLY', // Office Ally's standard receiver ID
-    senderID: '1161680', // Assigned Sender ID from Office Ally
-    username: process.env.OFFICE_ALLY_USERNAME || 'moonlit',
-    password: process.env.OFFICE_ALLY_PASSWORD || '***REDACTED-OLD-OA-PASSWORD***', // Fallback for special character issues
+    senderID: process.env.OFFICE_ALLY_SENDER_ID || '1161680', // Assigned Sender ID from Office Ally
+    username: process.env.OFFICE_ALLY_USERNAME,
+    password: process.env.OFFICE_ALLY_PASSWORD,
     providerNPI: process.env.PROVIDER_NPI || '1275348807',
     providerName: process.env.PROVIDER_NAME || 'MOONLIT_PLLC',
     // Office Ally identifiers
-    isa06: '1161680', // ISA06 - Sender ID
+    isa06: process.env.OFFICE_ALLY_SENDER_ID || '1161680', // ISA06 - Sender ID
     isa08: 'OFFALLY', // ISA08 - Receiver ID
-    gs02: '1161680', // GS02 - Sender ID
+    gs02: process.env.OFFICE_ALLY_SENDER_ID || '1161680', // GS02 - Sender ID
     gs03: 'OFFALLY', // GS03 - Receiver ID
-    payerID: 'UTMCD' // Office Ally payer ID for Utah Medicaid eligibility
+    payerID: process.env.OFFICE_ALLY_PAYER_ID || 'UTMCD' // Office Ally payer ID for Utah Medicaid eligibility
 };
 
 // Generate X12 270 for UHIN (embedded in SOAP)
@@ -329,6 +329,9 @@ function parseOfficeAllySOAPResponse(soapResponse) {
     }
 }
 
+// Import ACO transition analysis
+const { analyzeACOTransitionRisk, generateACOGuidanceMessage } = require('../../aco-transition-analysis');
+
 // Parse X12 271 eligibility response
 // Service Type Codes for detailed parsing
 const SERVICE_TYPES = {
@@ -518,11 +521,31 @@ function parseX12_271(x12Data) {
             result.error = 'No active Medicaid coverage found';
         }
         
+        // Add ACO transition risk analysis for enrolled patients
+        if (result.enrolled) {
+            const acoAnalysis = analyzeACOTransitionRisk(x12Data);
+            result.acoTransition = {
+                planType: acoAnalysis.planType,
+                assignedACOs: acoAnalysis.assignedACOs,
+                cmEligible: acoAnalysis.riskAssessment.cmEligible,
+                riskLevel: acoAnalysis.riskAssessment.riskLevel,
+                recommendation: acoAnalysis.riskAssessment.recommendation,
+                reasoning: acoAnalysis.riskAssessment.reasoning,
+                adminAction: acoAnalysis.riskAssessment.adminAction
+            };
+            
+            // Add guidance message for patients who need ACO enrollment
+            if (acoAnalysis.riskAssessment.adminAction === 'PROVIDE_ACO_GUIDANCE') {
+                result.acoGuidance = generateACOGuidanceMessage(acoAnalysis.assignedACOs);
+            }
+        }
+        
         console.log('✅ Enhanced X12 271 parsing complete:', {
             enrolled: result.enrolled,
             planType: result.planType,
             coverageCount: result.coverage.length,
-            hasTransportation: !!result.transportation
+            hasTransportation: !!result.transportation,
+            acoTransition: result.acoTransition?.recommendation || 'N/A'
         });
         
         return result;

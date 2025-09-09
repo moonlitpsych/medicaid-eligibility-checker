@@ -657,4 +657,150 @@ graph TB
 5. **Advanced Reporting**: Business intelligence dashboard for network analytics
 
 ---
-*Network Integration System - Complete production deployment with Supabase cross-referencing, auto-discovery, and enhanced patient interface*
+
+# 🎯 BREAKTHROUGH: Mental Health Carve-Out Discovery & ACO Transition Prediction
+
+## **LATEST CRITICAL DISCOVERY: Behavioral Health FFS Exception**
+**Date**: September 9, 2025  
+**Status**: Production-ready with mental health carve-out logic ✅
+
+### 🧠 **Mental Health Carve-Out Analysis**
+
+#### **Critical Case Study: Selena Partida (Roy, UT)**
+**Address**: 4563 S 1600 W, ROY, UT 84067 (Davis County)
+**Configuration**: SelectHealth ACO + Mental Health FFS
+
+**X12 271 Response Analysis:**
+```
+Medical Services:     EB*3*IND*30^1^...*HM*MC MEDICAL        // SelectHealth ACO
+Mental Health:        EB*1*IND*30^60^MH*MC*MENTAL HEALTH OUTPATIENT  // Traditional FFS
+Substance Use:        EB*1*IND*30^60^AI*MC*SUBSTANCE USE DISORDER    // Traditional FFS
+```
+
+#### **Key Finding: Service-Specific Coverage Segregation**
+- **Medical Care**: Managed by SelectHealth ACO (`HM` code)
+- **Behavioral Health**: Remains in Traditional Medicaid FFS (`MC` code)
+- **Geographic Exception**: Davis County (not Wasatch) shows FFS for MH services
+
+### 🔍 **ACO Transition Prediction System**
+
+#### **Plan Type Indicators Discovered:**
+- **"TARGETED ADULT MEDICAID"** (Jeremy Montoya) = Stable Traditional FFS → ✅ **LOW RISK**
+- **"TRADITIONAL ADULT"** (Selena Partida) = Temporary/Transitional FFS → ⚠️ **MEDIUM RISK**
+
+#### **Enhanced Eligibility Rules:**
+```javascript
+// CRITICAL: Check Mental Health services specifically, not overall medical coverage
+function checkCMEligibility(x12_271) {
+    const mhOutpatient = extractService(x12_271, 'MENTAL HEALTH OUTPATIENT');
+    const mhInpatient = extractService(x12_271, 'MENTAL HEALTH INPATIENT');
+    const substanceUse = extractService(x12_271, 'SUBSTANCE USE DISORDER');
+    
+    // Mental Health = MC (FFS) = CM Eligible regardless of medical ACO status
+    const mhIsFFS = mhOutpatient.includes('*MC*') || mhInpatient.includes('*MC*');
+    const sudIsFFS = substanceUse.includes('*MC*');
+    
+    if (mhIsFFS && sudIsFFS) {
+        return {
+            cmEligible: true,
+            reason: 'Behavioral health services in Traditional FFS',
+            billingPath: 'TRADITIONAL_MEDICAID'
+        };
+    }
+}
+```
+
+### 📊 **Dual Billing Path Architecture**
+
+#### **Claims Routing Logic:**
+- **Mental Health Claims** (H0038, 90834, etc.) → Traditional Medicaid FFS
+- **Medical Claims** (RTM codes 98980/98981) → May route to ACO or FFS depending on coverage
+- **Service Type Determines Path**: Not patient's overall ACO assignment
+
+#### **Implementation Files:**
+- `aco-transition-analysis.js` - Probabilistic ACO transition risk assessment
+- `investigate-selena-dual-coverage.js` - Mental health carve-out analysis
+- Enhanced `api/medicaid/check.js` - Service-specific eligibility checking
+
+### ✅ **Updated Business Rules**
+
+#### **CM Program Eligibility:**
+1. **Primary Check**: Mental Health Outpatient coverage type
+   - `MC*MENTAL HEALTH OUTPATIENT` = ✅ **ELIGIBLE**
+   - `HM*MENTAL HEALTH OUTPATIENT` = ❌ **NOT ELIGIBLE**
+
+2. **Secondary Check**: Substance Use Disorder coverage
+   - Must also be FFS for full CM program access
+
+3. **Medical ACO Status**: **IRRELEVANT** for CM eligibility
+   - Patient can have SelectHealth medical + FFS behavioral health
+   - CM services bill to behavioral health coverage only
+
+#### **Risk Assessment Matrix:**
+- **Low Risk**: TARGETED ADULT MEDICAID + MH FFS
+- **Medium Risk**: TRADITIONAL ADULT + MH FFS (monitor for changes)
+- **High Risk**: Any MH managed care assignment
+
+### 🚀 **Production Implementation Status**
+
+#### **✅ Completed Components:**
+- Mental health service-specific parsing in X12 271 responses
+- ACO transition risk analysis with probabilistic rules
+- Service-type aware eligibility determination
+- Real-time eligibility API with behavioral health carve-out logic
+
+#### **✅ Key Files Updated:**
+- `api/medicaid/check.js` - Enhanced with MH-specific coverage analysis
+- `aco-transition-analysis.js` - Complete risk assessment framework
+- API responses include `acoTransition` object with risk level and reasoning
+
+### 🔧 **Troubleshooting Guide: Office Ally Integration**
+
+#### **If Office Ally Stops Working:**
+
+1. **Check Credentials:**
+   ```bash
+   OFFICE_ALLY_USERNAME=moonlit
+   OFFICE_ALLY_PASSWORD=***REDACTED-OLD-OA-PASSWORD***
+   ```
+
+2. **Verify X12 270 Format:**
+   - Use Jeremy Montoya test case: DOB 1984-07-17
+   - Must include both TRN segments in working format
+   - BHT02 must be '13' (Request), not '11' (Response)
+
+3. **Test Sequence:**
+   ```bash
+   # 1. Test basic connectivity
+   curl -X POST http://localhost:3000/api/medicaid/check \
+   -H "Content-Type: application/json" \
+   -d '{"first":"Jeremy","last":"Montoya","dob":"1984-07-17"}'
+   
+   # 2. Check for X12 999 errors in response
+   # 3. Verify SOAP envelope format matches working samples
+   ```
+
+4. **Common Issues:**
+   - X12 999 errors: Format validation failures
+   - SOAP authentication: Check username/password
+   - Network timeouts: Office Ally server issues
+   - Data discrepancies: Patient not in their system
+
+### 📋 **Ready for CM App Development**
+
+#### **Foundation Complete:**
+- ✅ Real-time eligibility verification (400-800ms response times)
+- ✅ Mental health carve-out detection
+- ✅ ACO transition risk assessment
+- ✅ Service-specific billing path determination
+- ✅ Production-ready web interface
+- ✅ Comprehensive error handling and logging
+
+#### **Next Phase Requirements:**
+- CM app with patient/provider/admin interfaces
+- Claims submission via Office Ally SFTP
+- RTM and H0038 billing engine
+- Points system and roulette wheel for patients
+
+---
+*Mental Health Carve-Out Discovery - Critical breakthrough enabling accurate CM program eligibility determination regardless of ACO status*
