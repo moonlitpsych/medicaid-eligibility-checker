@@ -9,11 +9,13 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static('public'));
 
-// Import the eligibility check handler
+// Import the eligibility check handlers
 const checkEligibility = require('./routes/eligibility.js');
+const checkUtahMedicaidEligibility = require('./routes/utah-medicaid-working.js');
 
 // API Routes
 app.post('/api/medicaid/check', checkEligibility);
+app.post('/api/utah-medicaid/check', checkUtahMedicaidEligibility); // WORKING Utah Medicaid service
 
 // Serve the main interface
 app.get('/', (req, res) => {

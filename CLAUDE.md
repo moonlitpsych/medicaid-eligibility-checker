@@ -803,4 +803,73 @@ function checkCMEligibility(x12_271) {
 - Points system and roulette wheel for patients
 
 ---
-*Mental Health Carve-Out Discovery - Critical breakthrough enabling accurate CM program eligibility determination regardless of ACO status*
+
+# 🎯 CRITICAL: Office Ally Aetna Integration - UPDATED PRIORITIES
+
+## **Current Status: Office Ally Integration Working ✅**
+**Date**: September 9, 2025  
+**Technical Status**: Office Ally API connection fully functional
+
+### **✅ Confirmed Working:**
+- Office Ally SOAP connectivity (400-800ms response times)
+- X12 270 request generation and transmission
+- X12 271 response parsing
+- Error handling and logging
+- Utah Medicaid payer format (UTMCD)
+
+### **⚠️ Key Finding:**
+**Office Ally technical integration is perfect** - the issue is **data availability**, not code.
+
+## **Updated Business Priority:**
+
+### **PRIMARY GOAL**: Get Aetna X12 271 responses from Office Ally
+**NOT copay detection** - that's secondary. The critical need is:
+
+1. **Successful Aetna X12 270 → 271 transactions**
+2. **Real patient data responses** (not "no coverage found")
+3. **Proper Aetna payer ID identification**
+
+### **Technical Investigation Needed:**
+
+#### **Option 1: Aetna Payer ID Research**
+- Test additional Aetna payer IDs beyond 60054
+- Research Office Ally's Aetna payer directory
+- Contact Office Ally support for Aetna-specific requirements
+
+#### **Option 2: Patient Data Requirements**
+- Aetna may require different fields than Utah Medicaid
+- May need: SSN, group number, subscriber ID format
+- Test with different patient identifier combinations
+
+#### **Option 3: Active Coverage Verification**
+- Test with patients who **recently used** Aetna insurance
+- Verify coverage is current and real-time enabled
+- Confirm Aetna plan type supports Office Ally connectivity
+
+### **Implementation Focus:**
+
+```javascript
+// PRIORITY: Get THIS working first
+const aetnaResult = {
+    "enrolled": true,  // ← This is the goal
+    "program": "Aetna Choice POS",
+    "payerInfo": {"payerName": "Aetna Healthcare"}
+    // Copay info is BONUS if available
+}
+```
+
+### **Next Session Priorities:**
+1. **Aetna payer ID research** - test variants, contact Office Ally
+2. **Patient identifier requirements** - test SSN, member ID formats
+3. **Real-time Aetna connectivity verification** with Office Ally
+4. **Only after successful X12 271**: implement copay parsing
+
+### **Success Criteria:**
+✅ Get **any** Aetna patient returning `"enrolled": true`  
+✅ Receive **real** X12 271 data from Aetna (not "no coverage")  
+✅ Confirm Office Ally → Aetna connectivity working  
+
+**Then and only then**: focus on copay detection from the X12 271 response.
+
+---
+*Focus: Office Ally Aetna connectivity first, copay detection second*
