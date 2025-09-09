@@ -804,3 +804,129 @@ function checkCMEligibility(x12_271) {
 
 ---
 *Mental Health Carve-Out Discovery - Critical breakthrough enabling accurate CM program eligibility determination regardless of ACO status*
+
+---
+
+# 🎯 CRITICAL: Commercial Payer Expansion - Aetna Copay Detection
+
+## **NEW PRIORITY: Payer-Agnostic Eligibility System**
+**Date**: September 9, 2025  
+**Status**: Ready for implementation with existing Office Ally infrastructure ✅
+
+### 🚨 **Business Critical Use Case: Aetna Copay Detection**
+
+#### **Problem Identified:**
+- **Patient**: Active Aetna subscriber visiting moonlit provider
+- **Issue**: Patient has been seen 3-4 times WITHOUT copay collection
+- **Root Cause**: Availity eligibility checks did not clearly indicate copay requirement
+- **Financial Impact**: Uncollected copays across multiple visits
+- **Discovery**: Need real-time copay detection via X12 270/271 transactions
+
+#### **Technical Solution Ready:**
+Our existing Office Ally integration is **perfectly positioned** to solve this:
+- ✅ **Working X12 270/271 System**: Proven with Utah Medicaid (Jeremy Montoya test case)
+- ✅ **Office Ally Credentials**: Active account with functional API integration
+- ✅ **Payer ID Identified**: Aetna Healthcare payer ID **60054** supports Eligibility 270/271
+- ✅ **Response Time**: 400-800ms average (faster than Availity)
+- ✅ **Admin Dashboard**: Ready to display copay information
+
+### 📋 **Implementation Requirements:**
+
+#### **1. Aetna-Specific X12 270 Configuration**
+```javascript
+// CRITICAL: Adapt existing Utah Medicaid format for Aetna
+const AETNA_CONFIG = {
+  payerId: '60054',           // From Office Ally payer CSV
+  payerName: 'Aetna Healthcare', 
+  receiverId: 'OFFALLY',      // Office Ally standard
+  senderNPI: '1275348807',    // moonlit provider NPI
+  transactionType: 'COMMERCIAL' // vs 'MEDICAID'
+};
+
+// X12 270 Request Format (adapt existing working format):
+NM1*PR*2*AETNA HEALTHCARE*****PI*60054~  // Payer identification
+```
+
+#### **2. Copay Detection Logic**
+Enhanced response parsing to extract:
+- **Copay Amount**: From EB segments (service-specific copays)
+- **Copay Frequency**: Per visit, annual, etc.
+- **Service-Specific Copays**: Different amounts for office visits vs procedures
+- **Deductible Information**: Current deductible status
+- **Benefit Year Details**: Reset dates and accumulated amounts
+
+#### **3. Admin Dashboard Integration**
+Extend existing AdminDashboard.vue with:
+- **Payer Selection Dropdown**: Switch between Medicaid/Aetna/other commercial payers
+- **Real-Time Copay Display**: Prominent copay amount in eligibility results
+- **Financial Summary**: Track uncollected copays by patient
+- **Alert System**: Flag high-copay patients for front desk
+
+### 🔧 **Technical Implementation Path:**
+
+#### **Phase 1: Aetna Integration (2 hours)**
+1. **Extend Existing API** (`api/medicaid/check.js`):
+   - Add payer selection parameter
+   - Implement Aetna-specific X12 270 formatting
+   - Parse commercial insurance EB segments for copay data
+
+2. **Update Frontend** (`AdminDashboard.vue`):
+   - Add payer dropdown (Medicaid/Aetna/Commercial)
+   - Display copay amount prominently in results
+   - Add "Copay Required: $XX" alert badge
+
+3. **Test with Real Aetna Patient**:
+   - Use existing patient demographics
+   - Verify copay amount matches Aetna member services
+   - Compare against Availity results for accuracy
+
+#### **Phase 2: Multi-Payer System (4 hours)**
+1. **Payer Database**: Create comprehensive payer mapping from CSV
+2. **Smart Detection**: Auto-detect payer from patient insurance card info
+3. **Copay Tracking**: Store and track copay collection history
+4. **Reporting**: Copay collection performance analytics
+
+### 📊 **Expected Benefits:**
+
+#### **Immediate (Week 1)**:
+- ✅ **Copay Collection Recovery**: Identify missed copays on Aetna patients  
+- ✅ **Real-Time Verification**: Sub-second copay amount display
+- ✅ **Staff Efficiency**: No more manual Availity lookups
+- ✅ **Patient Experience**: Transparent copay communication
+
+#### **Long-term (Month 1)**:
+- 📈 **Revenue Recovery**: Systematic copay collection across all payers
+- 🎯 **Compliance**: Accurate benefit verification documentation  
+- ⚡ **Workflow Optimization**: Integrated eligibility + copay checking
+- 📊 **Analytics**: Track copay collection rates by payer
+
+### 🎯 **Ready-to-Deploy Infrastructure:**
+
+#### **Existing Assets:**
+- ✅ **Office Ally API**: Working credentials and SOAP integration
+- ✅ **X12 270/271 Parser**: Proven with Utah Medicaid complexity
+- ✅ **Vue.js Frontend**: Professional admin interface ready for enhancement
+- ✅ **Database Architecture**: Canonical patient system supports multi-payer
+- ✅ **Error Handling**: Robust timeout and failure management
+
+#### **Configuration Required:**
+```javascript
+// Ready-to-deploy payer configurations
+const PAYER_CONFIGS = {
+  'UTMCD': { name: 'Utah Medicaid', type: 'MEDICAID', copayLogic: 'mcMentalHealth' },
+  '60054': { name: 'Aetna Healthcare', type: 'COMMERCIAL', copayLogic: 'ebSegmentParsing' },
+  // Additional payers from CSV as needed
+};
+```
+
+### 🚀 **Next Session Priorities:**
+
+1. **Test Aetna Integration**: Adapt existing Jeremy Montoya X12 270 format for Aetna payer ID 60054
+2. **Copay Parsing Logic**: Implement EB segment analysis for copay extraction
+3. **Admin Dashboard Enhancement**: Add payer selection and copay display
+4. **Real Patient Validation**: Test with actual Aetna subscriber to verify copay accuracy
+
+**This expansion transforms our CM-focused eligibility system into a comprehensive, payer-agnostic solution that directly addresses the critical business need for accurate copay collection.**
+
+---
+*Commercial Payer Expansion - Mission critical for revenue optimization and compliance*
