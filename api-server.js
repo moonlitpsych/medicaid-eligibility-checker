@@ -40,6 +40,8 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.static('.'));
+app.use('/reach-2-0', express.static('../reach-2-0'));
 
 // Office Ally Configuration - NO HARDCODED CREDENTIALS
 const OFFICE_ALLY_CONFIG = {
@@ -384,6 +386,44 @@ app.post('/api/medicaid/check', async (req, res) => {
                 enrolled: false,
                 verified: false
             });
+        }
+
+        // 🎭 DEMO PATIENT DETECTION - Return mock data for Alex Demo
+        if (first.trim().toLowerCase() === 'alex' && last.trim().toLowerCase() === 'demo') {
+            console.log('🎭 DEMO MODE: Returning mock eligibility for Alex Demo');
+            
+            const mockResult = {
+                enrolled: true,
+                verified: true,
+                program: 'Utah Medicaid (DEMO)',
+                eligibilityStatus: 'Active Coverage',
+                planType: 'Traditional FFS',
+                patientData: {
+                    firstName: 'Alex',
+                    lastName: 'Demo',
+                    dateOfBirth: dob,
+                    phone: '3852018161',
+                    medicaidId: 'DEMO123456',
+                    gender: 'U',
+                    address: {
+                        street: '123 Demo Street',
+                        city: 'Salt Lake City',
+                        state: 'UT',
+                        zip: '84101'
+                    }
+                },
+                serviceTypes: {
+                    'Mental Health Outpatient': 'Active Coverage',
+                    'Substance Use Disorder': 'Active Coverage',
+                    'Professional Services': 'Active Coverage'
+                },
+                details: 'DEMO: Enrolled in Utah Medicaid Traditional FFS - QUALIFIES for CM Program',
+                processingTime: Date.now() - startTime,
+                demoMode: true,
+                rawX12: 'DEMO-MODE-NO-X12-GENERATED'
+            };
+
+            return res.json(mockResult);
         }
 
         console.log('🚀 Processing real OFFICE_ALLY eligibility check...');

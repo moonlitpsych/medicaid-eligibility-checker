@@ -221,36 +221,83 @@
             checkBtn.textContent = 'Checking Eligibility...';
             checkBtn.disabled = true;
 
-            logActivity('🔍 Starting eligibility check for demo patient...', 'info');
+            logActivity('🔍 Starting real eligibility check via Office Ally...', 'info');
 
             try {
-                // Simulate API call delay
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                // Call real API endpoint
+                const response = await fetch('/api/medicaid/check', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        first: firstName,
+                        last: lastName,
+                        dob: dateOfBirth
+                    })
+                });
 
-                // Show eligibility result
+                const result = await response.json();
+
+                if (result.enrolled) {
+                    // Show success result with real data
+                    const resultDiv = document.getElementById('eligibilityResult');
+                    resultDiv.className = 'bg-green-50 border border-green-200 rounded-lg p-4 fade-in';
+                    resultDiv.innerHTML = `
+                        <div class="flex items-center">
+                            <span class="text-2xl mr-3">✅</span>
+                            <div>
+                                <h4 class="font-semibold text-green-800">ELIGIBLE FOR CM PROGRAM</h4>
+                                <p class="text-sm text-green-700">${result.program || 'Utah Medicaid'}</p>
+                                <p class="text-xs text-green-600 mt-1">
+                                    Phone: ${result.patientData?.phone || '(385) 201-8161'} | 
+                                    Medicaid ID: ${result.patientData?.medicaidId || 'DEMO123456'}
+                                    ${result.demoMode ? ' (DEMO)' : ''}
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                    resultDiv.classList.remove('hidden');
+
+                    logActivity('✅ Eligibility verified - Patient qualifies for CM program', 'success');
+
+                    // Show phone confirmation after success
+                    setTimeout(() => {
+                        showPhoneConfirmation();
+                    }, 1000);
+                } else {
+                    // Show error result
+                    const resultDiv = document.getElementById('eligibilityResult');
+                    resultDiv.className = 'bg-red-50 border border-red-200 rounded-lg p-4 fade-in';
+                    resultDiv.innerHTML = `
+                        <div class="flex items-center">
+                            <span class="text-2xl mr-3">❌</span>
+                            <div>
+                                <h4 class="font-semibold text-red-800">NOT ELIGIBLE</h4>
+                                <p class="text-sm text-red-700">${result.error || 'No active coverage found'}</p>
+                            </div>
+                        </div>
+                    `;
+                    resultDiv.classList.remove('hidden');
+                    logActivity('❌ Patient not eligible for CM program', 'error');
+                }
+
+            } catch (error) {
+                logActivity('❌ Eligibility check failed: ' + error.message, 'error');
+                
+                // Show error message
                 const resultDiv = document.getElementById('eligibilityResult');
-                resultDiv.className = 'bg-green-50 border border-green-200 rounded-lg p-4 fade-in';
+                resultDiv.className = 'bg-red-50 border border-red-200 rounded-lg p-4 fade-in';
                 resultDiv.innerHTML = `
                     <div class="flex items-center">
-                        <span class="text-2xl mr-3">✅</span>
+                        <span class="text-2xl mr-3">⚠️</span>
                         <div>
-                            <h4 class="font-semibold text-green-800">ELIGIBLE FOR CM PROGRAM</h4>
-                            <p class="text-sm text-green-700">Utah Medicaid - Targeted Adult (Traditional FFS)</p>
-                            <p class="text-xs text-green-600 mt-1">Phone: (385) 201-8161 | Medicaid ID: DEMO123456</p>
+                            <h4 class="font-semibold text-red-800">API ERROR</h4>
+                            <p class="text-sm text-red-700">Unable to check eligibility: ${error.message}</p>
                         </div>
                     </div>
                 `;
                 resultDiv.classList.remove('hidden');
-
-                logActivity('✅ Eligibility verified - Patient qualifies for CM program', 'success');
-
-                // Show phone confirmation
-                setTimeout(() => {
-                    showPhoneConfirmation();
-                }, 1000);
-
-            } catch (error) {
-                logActivity('❌ Eligibility check failed', 'error');
             } finally {
                 checkBtn.textContent = 'Check Eligibility';
                 checkBtn.disabled = false;
@@ -417,7 +464,7 @@
         function openPatientApp() {
             // Open the reach-2-0 app with auto-login
             const demoToken = 'demo-recovery-day-' + Date.now();
-            const appUrl = '../reach-2-0/client/index.html?autoLogin=demo&token=' + demoToken;
+            const appUrl = 'reach-2-0/client/index.html?autoLogin=demo&token=' + demoToken;
             
             window.open(appUrl, '_blank');
             logActivity('🎯 Opened patient CM app in new window', 'success');
