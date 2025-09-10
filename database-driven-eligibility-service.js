@@ -434,7 +434,87 @@ async function generateDatabaseDrivenX12_270(patientData, officeAllyPayerId) {
 }
 
 /**
- * Log eligibility check to database
+ * Enhanced X12 271 parsing for auto-population
+ */
+async function parseX12_271ForAutoPopulation(x12_271, patientData) {
+    try {
+        const extractedData = {
+            phone: null,
+            medicaidId: null,
+            gender: null,
+            address: null,
+            memberInfo: null
+        };
+
+        // Extract phone number from various possible segments
+        // Look in PER segments for phone numbers
+        const perPhoneMatch = x12_271.match(/PER\*[^~]*\*[^~]*\*TE\*([0-9]{10})[^~]*/i);
+        if (perPhoneMatch) {
+            extractedData.phone = perPhoneMatch[1];
+        } else {
+            // Alternative phone extraction from DMG or other segments
+            const phoneMatch = x12_271.match(/([0-9]{10})/);
+            if (phoneMatch) {
+                extractedData.phone = phoneMatch[1];
+            }
+        }
+
+        // Extract gender from DMG segment
+        const genderMatch = x12_271.match(/DMG\*D8\*[0-9]{8}\*([MFU])/i);
+        if (genderMatch) {
+            extractedData.gender = genderMatch[1].toUpperCase();
+        }
+
+        // Extract Medicaid ID from various segments
+        const medicaidMatches = [
+            x12_271.match(/NM1\*IL\*[^~]*\*[^~]*\*[^~]*\*[^~]*\*[^~]*\*MI\*([A-Z0-9]+)/i),
+            x12_271.match(/REF\*1L\*([A-Z0-9]+)/i),
+            x12_271.match(/REF\*SY\*([A-Z0-9]+)/i)
+        ];
+        
+        for (const match of medicaidMatches) {
+            if (match && match[1]) {
+                extractedData.medicaidId = match[1];
+                break;
+            }
+        }
+
+        // Extract address from N3/N4 segments
+        const addressMatch = x12_271.match(/N3\*([^~]+)~N4\*([^~]+)\*([^~]+)\*([^~]+)/i);
+        if (addressMatch) {
+            extractedData.address = {
+                street: addressMatch[1],
+                city: addressMatch[2],
+                state: addressMatch[3],
+                zip: addressMatch[4]
+            };
+        }
+
+        // Extract member information from additional segments
+        const memberIdMatch = x12_271.match(/REF\*0F\*([A-Z0-9]+)/i);
+        if (memberIdMatch) {
+            extractedData.memberInfo = {
+                subscriberId: memberIdMatch[1]
+            };
+        }
+
+        console.log('📋 Extracted data from X12 271:', extractedData);
+        return extractedData;
+
+    } catch (error) {
+        console.error('❌ X12 271 parsing failed:', error);
+        return {
+            phone: null,
+            medicaidId: null,
+            gender: null,
+            address: null,
+            memberInfo: null
+        };
+    }
+}
+
+/**
+ * Log eligibility check to database with enhanced parsing
  */
 async function logEligibilityCheck(patientData, officeAllyPayerId, x12_270, x12_271, result, responseTime) {
     try {
@@ -456,7 +536,8 @@ async function logEligibilityCheck(patientData, officeAllyPayerId, x12_270, x12_
             .eq('provider_npi', providerInfo?.npi)
             .single();
         
-        const { error } = await supabase
+        // Log to eligibility_log table
+        const { data: logEntry, error: logError } = await supabase
             .from('eligibility_log')
             .insert([{
                 patient_first_name: patientData.firstName?.trim(),
@@ -474,15 +555,45 @@ async function logEligibilityCheck(patientData, officeAllyPayerId, x12_270, x12_
                 office_ally_payer_id: officeAllyPayerId,
                 provider_npi: providerInfo?.npi,
                 provider_id: providerRecord?.provider_id || null
-            }]);
+            }])
+            .select()
+            .single();
 
-        if (error) {
-            console.error('Database logging failed:', error);
-        } else {
-            console.log('✅ Database-driven eligibility check logged successfully');
+        if (logError) {
+            console.error('Database logging failed:', logError);
+            return null;
         }
+
+        // If successful and enrolled, parse X12 271 for extracted data
+        if (result.enrolled && x12_271) {
+            const extractedData = await parseX12_271ForAutoPopulation(x12_271, patientData);
+            
+            // Store parsed data using database function
+            const { data: parsedData, error: parseError } = await supabase
+                .rpc('parse_x12_271_for_patient_data', {
+                    p_x12_271_data: x12_271,
+                    p_patient_first_name: patientData.firstName?.trim(),
+                    p_patient_last_name: patientData.lastName?.trim(),
+                    p_patient_dob: patientData.dateOfBirth,
+                    p_eligibility_log_id: logEntry.id
+                });
+
+            if (parseError) {
+                console.warn('⚠️ X12 271 parsing function failed:', parseError.message);
+            } else {
+                console.log('✅ X12 271 data parsed and stored successfully');
+                
+                // Add extracted data to result for frontend use
+                result.extractedData = extractedData;
+            }
+        }
+
+        console.log('✅ Database-driven eligibility check logged successfully');
+        return logEntry;
+        
     } catch (error) {
         console.error('Error logging eligibility check:', error);
+        return null;
     }
 }
 
@@ -493,5 +604,6 @@ module.exports = {
     generateDynamicFormConfig,
     generateDatabaseDrivenX12_270,
     logEligibilityCheck,
+    parseX12_271ForAutoPopulation,
     supabase
 };
