@@ -375,18 +375,34 @@ function formatDateForSMS(dateStr) {
 }
 
 async function simulateSMSSending(phoneNumber, message) {
-    // Simulate SMS sending delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Use real Notifyre SMS service
+    const NotifyreSMSService = require('../services/notifyre-sms-service');
+    const smsService = new NotifyreSMSService();
     
-    // In demo mode, always succeed
-    console.log(`📱 [SIMULATED SMS] To: ${phoneNumber}`);
-    console.log(`📱 [SIMULATED SMS] Message: ${message.substring(0, 50)}...`);
-    
-    return {
-        success: true,
-        messageId: `sim_${Date.now()}`,
-        provider: 'demo_simulation'
-    };
+    try {
+        const result = await smsService.sendSMS(phoneNumber, message);
+        
+        console.log(`📱 ${result.demoMode ? '[DEMO SMS]' : '[REAL SMS]'} To: ${phoneNumber}`);
+        console.log(`📱 Provider: ${result.provider}, Message ID: ${result.messageId}`);
+        
+        return {
+            success: result.success,
+            messageId: result.messageId,
+            provider: result.provider,
+            demoMode: result.demoMode || false
+        };
+        
+    } catch (error) {
+        console.error('❌ SMS sending failed:', error.message);
+        
+        // Return error result
+        return {
+            success: false,
+            error: error.message,
+            provider: 'notifyre_error',
+            demoMode: true
+        };
+    }
 }
 
 async function updateDemoSessionStats(sessionId, eventType) {
