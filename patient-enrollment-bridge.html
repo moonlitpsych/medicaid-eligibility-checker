@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Your CM Program Enrollment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'moonlit': {
+                            50: '#f0f9ff',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #0ea5e9, #3b82f6, #6366f1);
+        }
+        .fade-in {
+            animation: fadeIn 0.6s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .slide-up {
+            animation: slideUp 0.4s ease-out;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+    </style>
+</head>
+
+<body class="gradient-bg min-h-screen">
+    <div class="min-h-screen flex items-center justify-center p-4">
+        <div class="max-w-md w-full">
+            
+            <!-- Step 1: Landing Page (from SMS) -->
+            <div id="landing" class="bg-white rounded-2xl shadow-2xl p-8 fade-in">
+                <div class="text-center mb-8">
+                    <div class="w-20 h-20 bg-gradient-to-br from-moonlit-500 to-moonlit-600 rounded-full mx-auto mb-6 flex items-center justify-center">
+                        <span class="text-3xl text-white">🎯</span>
+                    </div>
+                    <h1 class="text-2xl font-bold text-gray-800 mb-2">Welcome to Moonlit!</h1>
+                    <p class="text-gray-600">Complete your Contingency Management program enrollment</p>
+                </div>
+
+                <div id="tokenError" class="hidden bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                    <div class="flex">
+                        <svg class="w-5 h-5 text-red-400 mt-0.5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                        </svg>
+                        <div>
+                            <h3 class="text-sm font-medium text-red-800">Invalid or Expired Link</h3>
+                            <p class="text-sm text-red-700 mt-1">This enrollment link is no longer valid. Please contact your CPSS for a new link.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="enrollmentInfo" class="space-y-4 mb-8">
+                    <!-- Will be populated with patient info from token -->
+                </div>
+
+                <button onclick="showConsent()" id="continueBtn" 
+                    class="w-full bg-gradient-to-r from-moonlit-500 to-moonlit-600 text-white py-4 px-6 rounded-xl text-lg font-semibold hover:from-moonlit-600 hover:to-moonlit-700 transition-all duration-200 shadow-lg">
+                    Continue Enrollment
+                </button>
+
+                <div class="text-center mt-6">
+                    <p class="text-sm text-gray-500">🔒 Secure HIPAA-compliant enrollment</p>
+                </div>
+            </div>
+
+            <!-- Step 2: Consent & Terms -->
+            <div id="consent" class="bg-white rounded-2xl shadow-2xl p-8 hidden">
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <span class="text-2xl text-white">📋</span>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-800">Program Consent</h2>
+                </div>
+
+                <div class="bg-gray-50 rounded-lg p-4 mb-6 max-h-60 overflow-y-auto">
+                    <h3 class="font-semibold text-gray-800 mb-3">Contingency Management Program Agreement</h3>
+                    <div class="text-sm text-gray-700 space-y-3">
+                        <p><strong>Program Overview:</strong> You are enrolling in a Contingency Management (CM) program designed to support your recovery through positive reinforcement.</p>
+                        
+                        <p><strong>How It Works:</strong></p>
+                        <ul class="list-disc list-inside ml-4 space-y-1">
+                            <li>Complete drug tests as scheduled by your care team</li>
+                            <li>Earn points for negative test results (+15 points)</li>
+                            <li>Attend group sessions to earn additional points (+20 points)</li>
+                            <li>Redeem points for real cash rewards through roulette spins</li>
+                        </ul>
+
+                        <p><strong>Your Care Team:</strong></p>
+                        <ul class="list-disc list-inside ml-4 space-y-1">
+                            <li>MSW Cam Rodriguez - Master's level social worker</li>
+                            <li>CPSS Zach Thompson - Certified peer support specialist</li>
+                            <li>Pod-based support with up to 8 participants</li>
+                        </ul>
+
+                        <p><strong>Privacy & Confidentiality:</strong> All information is protected under HIPAA regulations. Your participation is voluntary and you may withdraw at any time.</p>
+
+                        <p><strong>Rewards:</strong> Earn real cash through our reward system - typical participants earn $50-200 per month based on engagement.</p>
+                    </div>
+                </div>
+
+                <div class="space-y-4 mb-6">
+                    <label class="flex items-start">
+                        <input type="checkbox" id="consentCheck" class="mt-1 mr-3 h-4 w-4 text-moonlit-600 focus:ring-moonlit-500 border-gray-300 rounded">
+                        <span class="text-sm text-gray-700">
+                            <strong>I consent to participate</strong> in the Contingency Management program and understand the terms described above.
+                        </span>
+                    </label>
+                    
+                    <label class="flex items-start">
+                        <input type="checkbox" id="hipaaCheck" class="mt-1 mr-3 h-4 w-4 text-moonlit-600 focus:ring-moonlit-500 border-gray-300 rounded">
+                        <span class="text-sm text-gray-700">
+                            <strong>I acknowledge</strong> the privacy practices and consent to the use of my health information for program purposes.
+                        </span>
+                    </label>
+                </div>
+
+                <div class="flex space-x-4">
+                    <button onclick="showLanding()" 
+                        class="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors">
+                        Back
+                    </button>
+                    <button onclick="createAccount()" id="agreeBtn" disabled
+                        class="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-lg font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                        I Agree & Continue
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 3: Account Creation -->
+            <div id="account" class="bg-white rounded-2xl shadow-2xl p-8 hidden">
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <span class="text-2xl text-white">👤</span>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-800">Create Your Account</h2>
+                    <p class="text-gray-600 text-sm">Set up your patient portal access</p>
+                </div>
+
+                <div id="accountError" class="hidden bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                    <p class="text-sm text-red-700"></p>
+                </div>
+
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                        <input type="email" id="email" 
+                            class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-moonlit-500 focus:border-moonlit-500"
+                            placeholder="your.email@example.com">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Create Password</label>
+                        <input type="password" id="password" 
+                            class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-moonlit-500 focus:border-moonlit-500"
+                            placeholder="Choose a secure password">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                        <input type="password" id="confirmPassword" 
+                            class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-moonlit-500 focus:border-moonlit-500"
+                            placeholder="Confirm your password">
+                    </div>
+                </div>
+
+                <div class="flex space-x-4">
+                    <button onclick="showConsent()" 
+                        class="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors">
+                        Back
+                    </button>
+                    <button onclick="completeEnrollment()" id="createAccountBtn"
+                        class="flex-1 bg-gradient-to-r from-purple-500 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:from-purple-600 hover:to-purple-700 transition-all duration-200">
+                        Create Account
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 4: Success & Redirect -->
+            <div id="success" class="bg-white rounded-2xl shadow-2xl p-8 hidden">
+                <div class="text-center">
+                    <div class="w-20 h-20 bg-gradient-to-br from-green-500 to-green-600 rounded-full mx-auto mb-6 flex items-center justify-center">
+                        <span class="text-3xl text-white">🎉</span>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Welcome to Your CM Program!</h2>
+                    <p class="text-gray-600 mb-6">Your account has been created successfully.</p>
+                    
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                        <div class="flex items-center">
+                            <span class="text-2xl mr-3">🎯</span>
+                            <div class="text-left">
+                                <h3 class="font-semibold text-green-800">You've earned 25 welcome points!</h3>
+                                <p class="text-sm text-green-700">Ready to start your recovery journey</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3 mb-8 text-sm text-gray-600">
+                        <p>✅ Account created and verified</p>
+                        <p>✅ Assigned to Pod Alpha with your care team</p>
+                        <p>✅ Ready to start earning rewards</p>
+                    </div>
+
+                    <button onclick="redirectToApp()" id="enterAppBtn"
+                        class="w-full bg-gradient-to-r from-moonlit-500 to-moonlit-600 text-white py-4 px-6 rounded-xl text-lg font-semibold hover:from-moonlit-600 hover:to-moonlit-700 transition-all duration-200 shadow-lg">
+                        Enter Your CM App
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let enrollmentToken = null;
+        let patientData = null;
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get token from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            enrollmentToken = urlParams.get('token');
+            
+            if (!enrollmentToken) {
+                showError('tokenError', 'No enrollment token provided');
+                return;
+            }
+            
+            // Validate token and load patient data
+            validateEnrollmentToken();
+            
+            // Set up consent checkbox listeners
+            const consentCheck = document.getElementById('consentCheck');
+            const hipaaCheck = document.getElementById('hipaaCheck');
+            const agreeBtn = document.getElementById('agreeBtn');
+            
+            function updateAgreeButton() {
+                agreeBtn.disabled = !(consentCheck.checked && hipaaCheck.checked);
+            }
+            
+            consentCheck.addEventListener('change', updateAgreeButton);
+            hipaaCheck.addEventListener('change', updateAgreeButton);
+        });
+
+        // Validate enrollment token and load patient data
+        async function validateEnrollmentToken() {
+            try {
+                // In demo mode, create mock patient data
+                if (enrollmentToken.includes('demo') || enrollmentToken.includes('test')) {
+                    patientData = {
+                        firstName: 'Alex',
+                        lastName: 'Demo',
+                        dateOfBirth: '1995-03-15',
+                        phone: '(385) 201-8161',
+                        medicaidId: 'DEMO123456',
+                        enrolledBy: 'Demo CPSS',
+                        enrolledAt: 'Recovery Day Demo Booth'
+                    };
+                    displayPatientInfo();
+                    return;
+                }
+                
+                // For production, validate with backend
+                const response = await fetch(`/api/recovery-day/enrollment/${enrollmentToken}`);
+                if (!response.ok) {
+                    throw new Error('Invalid or expired enrollment token');
+                }
+                
+                const data = await response.json();
+                patientData = data.patient;
+                displayPatientInfo();
+                
+            } catch (error) {
+                console.error('Token validation failed:', error);
+                document.getElementById('tokenError').classList.remove('hidden');
+                document.getElementById('continueBtn').disabled = true;
+            }
+        }
+
+        // Display patient information
+        function displayPatientInfo() {
+            const infoDiv = document.getElementById('enrollmentInfo');
+            infoDiv.innerHTML = `
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 class="font-semibold text-blue-900 mb-2">Your Information</h3>
+                    <div class="text-sm text-blue-800 space-y-1">
+                        <p><strong>Name:</strong> ${patientData.firstName} ${patientData.lastName}</p>
+                        <p><strong>Phone:</strong> ${patientData.phone}</p>
+                        <p><strong>Enrolled by:</strong> ${patientData.enrolledBy}</p>
+                        <p><strong>Location:</strong> ${patientData.enrolledAt}</p>
+                    </div>
+                </div>
+                
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div class="flex items-center">
+                        <span class="text-2xl mr-3">✅</span>
+                        <div>
+                            <h3 class="font-semibold text-green-900">Medicaid Verified</h3>
+                            <p class="text-sm text-green-800">Eligible for CM Program</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Navigation functions
+        function showLanding() {
+            hideAll();
+            document.getElementById('landing').classList.remove('hidden');
+            document.getElementById('landing').classList.add('fade-in');
+        }
+
+        function showConsent() {
+            hideAll();
+            document.getElementById('consent').classList.remove('hidden');
+            document.getElementById('consent').classList.add('slide-up');
+        }
+
+        function showAccount() {
+            hideAll();
+            document.getElementById('account').classList.remove('hidden');
+            document.getElementById('account').classList.add('slide-up');
+        }
+
+        function showSuccess() {
+            hideAll();
+            document.getElementById('success').classList.remove('hidden');
+            document.getElementById('success').classList.add('fade-in');
+        }
+
+        function hideAll() {
+            document.querySelectorAll('#landing, #consent, #account, #success').forEach(el => {
+                el.classList.add('hidden');
+                el.classList.remove('fade-in', 'slide-up');
+            });
+        }
+
+        // Create account and complete enrollment
+        async function createAccount() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            // Validation
+            if (!email || !password || !confirmPassword) {
+                showAccountError('Please fill in all fields');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                showAccountError('Passwords do not match');
+                return;
+            }
+            
+            if (password.length < 8) {
+                showAccountError('Password must be at least 8 characters');
+                return;
+            }
+
+            try {
+                document.getElementById('createAccountBtn').textContent = 'Creating Account...';
+                document.getElementById('createAccountBtn').disabled = true;
+
+                // For demo mode, simulate account creation
+                if (enrollmentToken.includes('demo') || enrollmentToken.includes('test')) {
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
+                    showSuccess();
+                    return;
+                }
+
+                // For production, create account via API
+                const response = await fetch('/api/recovery-day/complete-enrollment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        enrollmentToken,
+                        email,
+                        password,
+                        patientData
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Account creation failed');
+                }
+
+                const result = await response.json();
+                console.log('Account created:', result);
+                
+                showSuccess();
+
+            } catch (error) {
+                console.error('Account creation failed:', error);
+                showAccountError(error.message);
+            } finally {
+                document.getElementById('createAccountBtn').textContent = 'Create Account';
+                document.getElementById('createAccountBtn').disabled = false;
+            }
+        }
+
+        // Redirect to reach-2-0 patient app
+        async function redirectToApp() {
+            document.getElementById('enterAppBtn').textContent = 'Loading Your App...';
+            document.getElementById('enterAppBtn').disabled = true;
+            
+            // For demo mode, redirect to local reach-2-0
+            if (enrollmentToken.includes('demo') || enrollmentToken.includes('test')) {
+                // Simulate loading
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Redirect to reach-2-0 with auto-login
+                window.location.href = '../reach-2-0/client/index.html?autoLogin=demo&token=' + enrollmentToken;
+                return;
+            }
+            
+            // For production, get auth token and redirect
+            try {
+                const response = await fetch('/api/recovery-day/app-redirect', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        enrollmentToken
+                    })
+                });
+                
+                const result = await response.json();
+                
+                // Redirect to reach-2-0 app with auth token
+                window.location.href = result.appUrl + '?token=' + result.authToken;
+                
+            } catch (error) {
+                console.error('Redirect failed:', error);
+                alert('Unable to access your CM app. Please contact support.');
+            }
+        }
+
+        // Helper functions
+        function showError(elementId, message) {
+            const errorEl = document.getElementById(elementId);
+            errorEl.textContent = message;
+            errorEl.classList.remove('hidden');
+        }
+
+        function showAccountError(message) {
+            const errorEl = document.getElementById('accountError');
+            errorEl.querySelector('p').textContent = message;
+            errorEl.classList.remove('hidden');
+        }
+
+        function completeEnrollment() {
+            showAccount();
+        }
+    </script>
+</body>
+</html>

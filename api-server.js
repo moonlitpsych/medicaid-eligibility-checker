@@ -11,6 +11,9 @@ let canonicalPointsRouter = null;
 let initializeCMDatabase = null;
 let initializeCMDatabaseCanonical = null;
 
+// Recovery Day Demo imports
+let recoveryDayRouter = null;
+
 try {
     initializeCMDatabase = require('./api/cm/database').initializeCMDatabase;
     initializeCMDatabaseCanonical = require('./api/cm/database-canonical').initializeCMDatabaseCanonical;
@@ -20,6 +23,15 @@ try {
 } catch (error) {
     console.warn('⚠️ CM modules failed to load:', error.message);
     console.warn('   CM features will be disabled');
+}
+
+// Load Recovery Day Demo routes
+try {
+    recoveryDayRouter = require('./api/recovery-day-routes');
+    console.log('✅ Recovery Day demo routes loaded successfully');
+} catch (error) {
+    console.warn('⚠️ Recovery Day demo routes failed to load:', error.message);
+    console.warn('   Recovery Day features will be disabled');
 }
 
 const app = express();
@@ -774,6 +786,14 @@ if (cmPointsRouter) {
     console.log('✅ CM legacy routes enabled');
 } else {
     console.log('⚠️ CM legacy routes disabled (module failed to load)');
+}
+
+// Recovery Day Demo Routes
+if (recoveryDayRouter) {
+    app.use('/api/recovery-day', recoveryDayRouter);
+    console.log('✅ Recovery Day demo routes enabled');
+} else {
+    console.log('⚠️ Recovery Day demo routes disabled (module failed to load)');
 }
 
 // Initialize CM database on server start

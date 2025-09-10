@@ -123,6 +123,29 @@
             </div>
           </div>
 
+          <!-- Auto-populated Data Preview -->
+          <div v-if="eligibilityResult.enrolled && hasExtractedData()" class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 class="font-medium text-blue-900 mb-2">📋 Auto-populated from Medicaid Database:</h4>
+            <div class="grid grid-cols-2 gap-3 text-sm">
+              <div v-if="patientInfo.extractedPhone">
+                <span class="text-blue-700 font-medium">Phone:</span> 
+                <span class="text-blue-800">{{ formatPhone(patientInfo.extractedPhone) }}</span>
+              </div>
+              <div v-if="patientInfo.extractedMedicaidId">
+                <span class="text-blue-700 font-medium">Medicaid ID:</span> 
+                <span class="text-blue-800">{{ patientInfo.extractedMedicaidId }}</span>
+              </div>
+              <div v-if="patientInfo.extractedGender">
+                <span class="text-blue-700 font-medium">Gender:</span> 
+                <span class="text-blue-800">{{ patientInfo.extractedGender === 'M' ? 'Male' : patientInfo.extractedGender === 'F' ? 'Female' : 'Unknown' }}</span>
+              </div>
+              <div v-if="eligibilityResult.responseTime">
+                <span class="text-blue-700 font-medium">Response Time:</span> 
+                <span class="text-blue-800">{{ eligibilityResult.responseTime }}ms</span>
+              </div>
+            </div>
+          </div>
+
           <div v-if="eligibilityResult.enrolled" class="mt-4">
             <button 
               @click="step = 2" 
@@ -138,25 +161,59 @@
       <div v-if="step === 2" class="bg-white rounded-xl shadow-lg p-8">
         <h2 class="text-xl font-bold text-gray-900 mb-6">Patient Contact & Enrollment</h2>
         
-        <!-- Patient Summary -->
+        <!-- Enhanced Patient Summary -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <h3 class="font-medium text-blue-900">Patient: {{ patientInfo.firstName }} {{ patientInfo.lastName }}</h3>
-          <p class="text-blue-700 text-sm">DOB: {{ formatDate(patientInfo.dob) }} • {{ eligibilityResult.program }}</p>
+          <div class="text-blue-700 text-sm space-y-1">
+            <p>DOB: {{ formatDate(patientInfo.dob) }} • {{ eligibilityResult.program }}</p>
+            <p v-if="eligibilityResult.planType">Plan Type: {{ eligibilityResult.planType }}</p>
+            <p v-if="patientInfo.extractedMedicaidId">Medicaid ID: {{ patientInfo.extractedMedicaidId }}</p>
+            <p v-if="eligibilityResult.responseTime">Verification Time: {{ eligibilityResult.responseTime }}ms</p>
+          </div>
         </div>
 
         <form @submit.prevent="enrollPatient" class="space-y-6">
-          <!-- Phone Number -->
+          <!-- Phone Number with Confirmation -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
               Phone Number <span class="text-red-500">*</span>
+              <span v-if="patientInfo.extractedPhone" class="text-green-600 text-sm">(Auto-populated from Medicaid)</span>
             </label>
-            <input 
-              v-model="contactInfo.phone" 
-              type="tel" 
-              required
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
-              placeholder="(555) 123-4567"
-            >
+            
+            <div class="space-y-3">
+              <input 
+                v-model="contactInfo.phone" 
+                type="tel" 
+                required
+                :class="[
+                  'w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg',
+                  patientInfo.extractedPhone ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                ]"
+                placeholder="(555) 123-4567"
+              >
+              
+              <!-- Phone Confirmation for extracted data -->
+              <div v-if="patientInfo.extractedPhone && contactInfo.phone" class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p class="text-sm text-yellow-800 mb-2">
+                  <strong>Confirm with patient:</strong> "Is {{ formatPhone(contactInfo.phone) }} your current smartphone number?"
+                </p>
+                <div class="flex space-x-4">
+                  <button 
+                    @click="contactInfo.phoneConfirmed = true"
+                    :class="contactInfo.phoneConfirmed ? 'bg-green-600 text-white' : 'bg-white text-green-600 border border-green-600'"
+                    class="px-4 py-2 rounded-lg font-medium transition-colors"
+                  >
+                    ✓ Confirmed
+                  </button>
+                  <button 
+                    @click="contactInfo.phoneConfirmed = false; contactInfo.phone = ''"
+                    class="px-4 py-2 bg-white text-red-600 border border-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors"
+                  >
+                    ✗ Update Number
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Email -->
@@ -207,10 +264,21 @@
             </label>
           </div>
 
-          <!-- Enroll Button -->
+          <!-- Enroll Button with SMS Preview -->
+          <div v-if="contactInfo.phone && contactInfo.phoneConfirmed" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+            <h4 class="font-medium text-green-900 mb-2">📱 SMS Message Preview:</h4>
+            <div class="bg-white rounded-lg p-3 border text-sm text-gray-700">
+              🎯 Welcome to Moonlit's CM program! You've earned 25 welcome points.<br><br>
+              📱 Access your patient portal:<br>
+              <span class="text-blue-600 underline">{{ getPatientAppLink() }}</span><br><br>
+              🔑 Login with your name and DOB<br><br>
+              Questions? Reply STOP to opt out.
+            </div>
+          </div>
+          
           <button 
             type="submit" 
-            :disabled="enrolling"
+            :disabled="enrolling || (patientInfo.extractedPhone && !contactInfo.phoneConfirmed)"
             class="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-medium py-4 px-6 rounded-lg transition-colors text-lg"
           >
             <span v-if="enrolling" class="flex items-center justify-center">
@@ -218,9 +286,9 @@
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              Enrolling Patient...
+              Enrolling & Sending SMS...
             </span>
-            <span v-else>Enroll in CM Program</span>
+            <span v-else>Enroll in CM Program & Send SMS</span>
           </button>
         </form>
 
@@ -353,44 +421,87 @@ export default {
       firstName: '',
       lastName: '',
       dob: '',
-      medicaidId: ''
+      medicaidId: '',
+      // Auto-populated fields from X12 271 response
+      extractedPhone: '',
+      extractedAddress: '',
+      extractedGender: '',
+      extractedMedicaidId: ''
     })
 
     const contactInfo = reactive({
       phone: '',
       email: '',
       hasSmartphone: 'yes',
-      consent: false
+      consent: false,
+      phoneConfirmed: false // Track if patient confirmed phone number
     })
 
     const eligibilityResult = ref(null)
+    const smsResult = ref(null)
+    const enrollmentId = ref(null)
+    
+    // Auto-populate patient data from X12 271 response
+    const autoPopulatePatientData = (extractedData) => {
+      console.log('🔄 Auto-populating patient data:', extractedData)
+      
+      if (extractedData.phone) {
+        patientInfo.extractedPhone = extractedData.phone
+        contactInfo.phone = extractedData.phone
+      }
+      
+      if (extractedData.medicaidId) {
+        patientInfo.extractedMedicaidId = extractedData.medicaidId
+      }
+      
+      if (extractedData.address) {
+        patientInfo.extractedAddress = extractedData.address
+      }
+      
+      if (extractedData.gender) {
+        patientInfo.extractedGender = extractedData.gender
+      }
+    }
 
     const checkEligibility = async () => {
       checking.value = true
       try {
-        const response = await fetch('http://localhost:3000/api/medicaid/check', {
+        // Use database-driven eligibility API with Utah Medicaid
+        const response = await fetch('http://localhost:3000/api/database-eligibility/check', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            first: patientInfo.firstName,
-            last: patientInfo.lastName,
-            dob: patientInfo.dob
+            payerId: 'UTMCD', // Utah Medicaid payer ID
+            firstName: patientInfo.firstName,
+            lastName: patientInfo.lastName,
+            dateOfBirth: patientInfo.dob,
+            medicaidId: patientInfo.medicaidId || null
           })
         })
 
         const result = await response.json()
+        console.log('📋 Database-driven eligibility result:', result)
         
         eligibilityResult.value = {
           enrolled: result.enrolled,
           program: result.program || 'Traditional Medicaid',
+          planType: result.planType || 'Unknown',
+          responseTime: result.responseTime,
+          copayInfo: result.copayInfo,
           message: result.enrolled 
             ? `${result.program} - Qualified for Contingency Management Program`
-            : result.message || 'Not eligible for CM program - please check insurance status'
+            : result.error || 'Not eligible for CM program - please check insurance status'
         }
+
+        // Auto-populate patient data from X12 271 response if available
+        if (result.enrolled && result.extractedData) {
+          autoPopulatePatientData(result.extractedData)
+        }
+        
       } catch (error) {
-        console.error('Eligibility check failed:', error)
+        console.error('Database-driven eligibility check failed:', error)
         eligibilityResult.value = {
           enrolled: false,
           message: 'Unable to verify eligibility - please check connection and try again'
@@ -403,31 +514,45 @@ export default {
     const enrollPatient = async () => {
       enrolling.value = true
       try {
-        // First, create or find the patient in the main patients table
-        const patientData = {
+        // Enhanced patient enrollment with database-driven tracking
+        const enrollmentData = {
+          // Basic patient info
           firstName: patientInfo.firstName,
           lastName: patientInfo.lastName,
           dateOfBirth: patientInfo.dob,
+          
+          // Contact info (auto-populated or manually entered)
           phone: contactInfo.phone,
           email: contactInfo.email || null,
-          insuranceType: eligibilityResult.value.program
+          
+          // Enhanced data from X12 271 response
+          medicaidId: patientInfo.extractedMedicaidId || patientInfo.medicaidId,
+          gender: patientInfo.extractedGender,
+          address: patientInfo.extractedAddress,
+          
+          // Eligibility verification details
+          medicaidProgram: eligibilityResult.value.program,
+          planType: eligibilityResult.value.planType,
+          eligibilityVerified: true,
+          
+          // Enrollment process details
+          deviceStatus: contactInfo.hasSmartphone,
+          phoneConfirmed: contactInfo.phoneConfirmed,
+          consent: contactInfo.consent,
+          
+          // Demo tracking
+          enrolledByCpssName: getCurrentCPSS(),
+          enrolledAtLocation: 'Recovery Day Demo',
+          demoSessionId: 'RECOVERY_DAY_TABLET_01'
         }
 
-        // Try to enroll the patient - the API will handle creating patient record if needed
-        const enrollResponse = await fetch('http://localhost:3000/api/cm/patient/enroll', {
+        // Create patient enrollment record in Supabase
+        const enrollResponse = await fetch('http://localhost:3000/api/recovery-day/enroll', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            patientData,
-            contactInfo: {
-              phone: contactInfo.phone,
-              email: contactInfo.email,
-              hasSmartphone: contactInfo.hasSmartphone,
-              consent: contactInfo.consent
-            }
-          })
+          body: JSON.stringify(enrollmentData)
         })
 
         const enrollResult = await enrollResponse.json()
@@ -436,19 +561,45 @@ export default {
           throw new Error(enrollResult.error || 'Enrollment failed')
         }
         
-        console.log('Patient enrolled successfully:', enrollResult)
+        console.log('🎉 Patient enrolled successfully:', enrollResult)
+        enrollmentId.value = enrollResult.enrollmentId
         
-        // Simulate sending text message/email based on smartphone access
-        if (contactInfo.hasSmartphone === 'yes' && contactInfo.phone) {
-          console.log(`SMS sent to ${contactInfo.phone}: Welcome to Moonlit CM! Access your portal: ${getPatientAppLink()}`)
+        // Send SMS with secure enrollment link if patient has smartphone
+        if (contactInfo.hasSmartphone === 'yes' && contactInfo.phone && contactInfo.phoneConfirmed) {
+          const smsResponse = await sendEnrollmentSMS(enrollResult.enrollmentId, contactInfo.phone)
+          smsResult.value = smsResponse
+          console.log('📱 SMS sent successfully:', smsResponse)
         }
         
         step.value = 3
       } catch (error) {
-        console.error('Enrollment failed:', error)
+        console.error('❌ Enrollment failed:', error)
         alert(`Enrollment failed: ${error.message}. Please try again.`)
       } finally {
         enrolling.value = false
+      }
+    }
+
+    // Send SMS with secure enrollment link
+    const sendEnrollmentSMS = async (enrollmentId, phoneNumber) => {
+      try {
+        const response = await fetch('http://localhost:3000/api/recovery-day/send-sms', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            enrollmentId,
+            phoneNumber,
+            patientName: `${patientInfo.firstName} ${patientInfo.lastName}`,
+            dateOfBirth: patientInfo.dob
+          })
+        })
+        
+        return await response.json()
+      } catch (error) {
+        console.error('SMS sending failed:', error)
+        return { success: false, error: error.message }
       }
     }
 
@@ -493,6 +644,20 @@ export default {
       eligibilityResult.value = null
     }
 
+    // Helper functions for enhanced UI
+    const hasExtractedData = () => {
+      return patientInfo.extractedPhone || patientInfo.extractedMedicaidId || patientInfo.extractedGender
+    }
+    
+    const formatPhone = (phone) => {
+      if (!phone) return ''
+      const cleaned = phone.replace(/\D/g, '')
+      if (cleaned.length === 10) {
+        return `(${cleaned.slice(0,3)}) ${cleaned.slice(3,6)}-${cleaned.slice(6)}`
+      }
+      return phone
+    }
+
     return {
       step,
       checking,
@@ -500,11 +665,18 @@ export default {
       patientInfo,
       contactInfo,
       eligibilityResult,
+      smsResult,
+      enrollmentId,
       checkEligibility,
       enrollPatient,
+      sendEnrollmentSMS,
       formatDate,
+      formatPhone,
+      hasExtractedData,
+      autoPopulatePatientData,
       getPatientAppLink,
       getDeviceStatusText,
+      getCurrentCPSS,
       startNewOnboarding
     }
   }

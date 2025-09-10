@@ -11,8 +11,12 @@ const {
     getPayerDropdownOptions,
     getPayerConfig,
     generateDatabaseDrivenX12_270,
-    logEligibilityCheck
+    logEligibilityCheck,
+    parseX12_271ForAutoPopulation
 } = require('./database-driven-eligibility-service');
+
+// Demo patient setup
+const { isDemoPatient, getDemoResponse } = require('./demo-patient-setup');
 
 // Import existing Office Ally utilities (we'll create minimal versions)
 // Reuse SOAP handling logic from working system
@@ -139,7 +143,26 @@ async function handleDatabaseDrivenEligibilityCheck(req, res) {
 
         console.log(`🔍 Database-driven eligibility check: ${firstName} ${lastName} with ${payerId}`);
 
-        // Get payer configuration from database
+        // Check if this is the demo patient
+        if (isDemoPatient(firstName, lastName, dateOfBirth)) {
+            console.log('🎭 Demo patient detected - returning mock response');
+            const demoResponse = getDemoResponse();
+            
+            // Log demo check for analytics (with mock data)
+            await logEligibilityCheck(
+                patientData, 
+                payerId, 
+                'DEMO_X12_270_REQUEST', 
+                'DEMO_X12_271_RESPONSE', 
+                demoResponse, 
+                demoResponse.responseTime
+            );
+            
+            console.log(`✅ Demo eligibility check complete: ENROLLED (${demoResponse.responseTime}ms)`);
+            return res.json(demoResponse);
+        }
+
+        // Get payer configuration from database for real patients
         const payerConfig = await getPayerConfig(payerId);
         if (!payerConfig) {
             return res.status(400).json({
@@ -181,8 +204,13 @@ async function handleDatabaseDrivenEligibilityCheck(req, res) {
         const eligibilityResult = await parseDatabaseDrivenX12_271(x12_271, payerId, payerConfig);
         eligibilityResult.responseTime = Date.now() - startTime;
 
-        // Log to database
-        await logEligibilityCheck(patientData, payerId, x12_270, x12_271, eligibilityResult, Date.now() - startTime);
+        // Log to database with enhanced X12 271 parsing
+        const logEntry = await logEligibilityCheck(patientData, payerId, x12_270, x12_271, eligibilityResult, Date.now() - startTime);
+        
+        // Add extracted data to response if available
+        if (eligibilityResult.extractedData) {
+            console.log('📋 Auto-population data available:', Object.keys(eligibilityResult.extractedData));
+        }
 
         console.log(`✅ Database-driven eligibility check complete: ${eligibilityResult.enrolled ? 'ENROLLED' : 'NOT ENROLLED'}`);
         res.json(eligibilityResult);
