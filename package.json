@@ -28,6 +28,7 @@
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "node-fetch": "^3.3.2",
+    "notifyre-nodejs-sdk": "^1.8.0",
     "pg": "^8.16.3",
     "tailwindcss": "^3.4.17",
     "vue": "^3.5.21"
