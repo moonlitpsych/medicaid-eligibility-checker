@@ -12,10 +12,12 @@ app.use(express.static('public'));
 // Import the eligibility check handlers
 const checkEligibility = require('./routes/eligibility.js');
 const checkUtahMedicaidEligibility = require('./routes/utah-medicaid-working.js');
+const recoveryDayRoutes = require('./api/recovery-day-routes.js');
 
 // API Routes
 app.post('/api/medicaid/check', checkEligibility);
 app.post('/api/utah-medicaid/check', checkUtahMedicaidEligibility); // WORKING Utah Medicaid service
+app.use('/api/recovery-day', recoveryDayRoutes); // Recovery Day demo routes
 
 // Serve the main interface
 app.get('/', (req, res) => {

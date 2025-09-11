@@ -277,7 +277,28 @@ async function checkEligibility(req, res) {
     console.log(`🔍 Checking eligibility for ${req.body.first} ${req.body.last} via ${getEligibilityProvider().toUpperCase()}`);
     
     try {
-        const { first, last, dob, ssn, medicaidId, gender, payerId, payerName } = req.body;
+        const { first, last, dob, ssn, medicaidId, gender, payerId, payerName, demoMode } = req.body;
+        
+        // Check if this is a demo request
+        if (demoMode || (first === 'Alex' && last === 'Demo')) {
+            console.log('🎭 Demo mode detected - returning successful eligibility response');
+            return res.json({
+                enrolled: true,
+                verified: true,
+                program: 'Utah Medicaid (Demo)',
+                details: 'Demo patient - eligible for CM program',
+                payerInfo: {
+                    payerName: 'MEDICAID UTAH',
+                    payerType: 'MEDICAID',
+                    planType: 'Traditional FFS'
+                },
+                patientData: {
+                    phone: req.body.participantPhone || '(385) 201-8161',
+                    medicaidId: 'DEMO123456'
+                },
+                demoMode: true
+            });
+        }
         
         // Determine which payer to use (default to Utah Medicaid)
         const targetPayerId = payerId || 'UTMCD';

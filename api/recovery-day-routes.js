@@ -353,6 +353,116 @@ router.post('/session', async (req, res) => {
     }
 });
 
+/**
+ * Send real SMS for demo via Notifyre
+ * POST /api/recovery-day/send-demo-sms
+ */
+router.post('/send-demo-sms', async (req, res) => {
+    try {
+        const { phoneNumber, patientName, demoMode } = req.body;
+        
+        if (!phoneNumber) {
+            return res.status(400).json({
+                success: false,
+                error: 'Phone number is required'
+            });
+        }
+
+        console.log(`📱 Sending REAL demo SMS to ${phoneNumber}`);
+
+        // Generate demo enrollment token
+        const demoToken = 'demo-recovery-day-' + Date.now();
+        
+        // Use production URL if deployed, otherwise localhost
+        const baseUrl = process.env.DEPLOYMENT_URL || 'http://localhost:3002';
+        const enrollmentUrl = `${baseUrl}/enroll?token=${demoToken}`;
+        
+        // Create personalized message
+        const message = `🎯 Hi! Try the Moonlit CM patient app demo for ${patientName}: ${enrollmentUrl}
+
+This is a live demo - you'll earn 25 welcome points and can complete drug tests to win cash prizes!
+
+Reply STOP to opt out.`;
+
+        // Send real SMS via Notifyre
+        const NotifyreSMSService = require('../services/notifyre-sms-service');
+        const smsService = new NotifyreSMSService();
+        
+        const result = await smsService.sendSMS(phoneNumber, message);
+        
+        console.log(`📱 SMS Result:`, {
+            success: result.success,
+            messageId: result.messageId,
+            provider: result.provider,
+            demoMode: result.demoMode
+        });
+
+        res.json({
+            success: result.success,
+            messageId: result.messageId,
+            provider: result.provider,
+            demoMode: result.demoMode || false,
+            enrollmentToken: demoToken,
+            enrollmentUrl: enrollmentUrl
+        });
+
+    } catch (error) {
+        console.error('❌ Demo SMS sending failed:', error);
+        res.status(500).json({
+            success: false,
+            error: `SMS sending failed: ${error.message}`
+        });
+    }
+});
+
+/**
+ * Store demo visitor information for follow-up
+ * POST /api/recovery-day/demo-visitor
+ */
+router.post('/demo-visitor', async (req, res) => {
+    try {
+        const { name, role, phone, organization, consent } = req.body;
+        
+        // Store visitor for follow-up
+        const { data: visitor, error } = await supabase
+            .from('demo_visitors')
+            .insert({
+                name,
+                role, 
+                phone,
+                organization,
+                consent_to_follow_up: consent,
+                demo_date: new Date(),
+                demo_location: 'Recovery Day'
+            })
+            .select()
+            .single();
+        
+        if (error) {
+            console.error('Failed to store visitor:', error);
+            return res.status(500).json({
+                success: false,
+                error: `Failed to store visitor data: ${error.message}`
+            });
+        }
+        
+        console.log(`📝 Demo visitor stored: ${name} (${role}) - Phone: ${phone}, Consent: ${consent}`);
+        
+        res.json({ 
+            success: true, 
+            visitorId: visitor?.id,
+            message: 'Visitor information stored successfully'
+        });
+
+    } catch (error) {
+        console.error('❌ Failed to store demo visitor:', error);
+        res.status(500).json({
+            success: false,
+            error: `Failed to store demo visitor: ${error.message}`
+        });
+    }
+});
+
 // Helper functions
 
 function getDeviceStatusCode(deviceStatus) {
