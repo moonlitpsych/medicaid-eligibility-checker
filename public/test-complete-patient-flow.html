@@ -96,6 +96,14 @@
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg">
                     </div>
 
+                    <div class="mb-6 bg-blue-50 p-6 rounded-xl border-2 border-blue-200">
+                        <label class="block text-lg font-semibold text-blue-900 mb-3 text-center">📱 Demo Participant Phone Number</label>
+                        <input type="tel" id="visitorPhone" placeholder="Enter your phone number for SMS demo" 
+                            class="w-full px-4 py-4 border-2 border-blue-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xl text-center font-medium"
+                            style="font-size: 1.25rem;">
+                        <p class="text-sm text-blue-700 mt-2 text-center">You'll receive a real SMS with a link to try the patient app</p>
+                    </div>
+
                     <button onclick="checkEligibility()" id="checkBtn"
                         class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors">
                         Check Eligibility
@@ -158,19 +166,19 @@
                     <h4 class="font-semibold mb-2">For Live Demo:</h4>
                     <ul class="space-y-1">
                         <li>• Use Alex Demo, DOB: 03/15/1995</li>
-                        <li>• Shows instant eligibility verification</li>
-                        <li>• Auto-fills phone: (385) 201-8161</li>
-                        <li>• Safe - no real patient data</li>
+                        <li>• Enter participant's phone number</li>
+                        <li>• Real SMS sent via Notifyre</li>
+                        <li>• Participant receives actual link</li>
                     </ul>
                 </div>
                 <div>
                     <h4 class="font-semibold mb-2">Complete Flow:</h4>
                     <ul class="space-y-1">
-                        <li>• CPSS checks eligibility (1-2 seconds)</li>
-                        <li>• Patient confirms phone number</li>
-                        <li>• SMS link sent (simulated)</li>
-                        <li>• Patient completes enrollment</li>
-                        <li>• Direct access to CM app</li>
+                        <li>• CPSS checks eligibility (instant)</li>
+                        <li>• Confirm phone & send REAL SMS</li>
+                        <li>• Participant opens link on their phone</li>
+                        <li>• Name/role collected on patient side</li>
+                        <li>• Direct access to live CM app</li>
                     </ul>
                 </div>
             </div>
@@ -217,6 +225,14 @@
             const lastName = document.getElementById('lastName').value;
             const dateOfBirth = document.getElementById('dateOfBirth').value;
             
+            // Get participant phone number
+            const participantPhone = document.getElementById('visitorPhone').value;
+            
+            if (!participantPhone) {
+                alert('Please enter a phone number for the SMS demo');
+                return;
+            }
+            
             const checkBtn = document.getElementById('checkBtn');
             checkBtn.textContent = 'Checking Eligibility...';
             checkBtn.disabled = true;
@@ -233,7 +249,9 @@
                     body: JSON.stringify({
                         first: firstName,
                         last: lastName,
-                        dob: dateOfBirth
+                        dob: dateOfBirth,
+                        participantPhone: participantPhone,
+                        demoMode: true  // Flag this as a demo request
                     })
                 });
 
@@ -305,33 +323,34 @@
         }
 
         function showPhoneConfirmation() {
+            const participantPhone = document.getElementById('visitorPhone').value;
             const phoneDiv = document.getElementById('phoneConfirmation');
             phoneDiv.className = 'bg-yellow-50 border border-yellow-200 rounded-lg p-4 fade-in';
             phoneDiv.innerHTML = `
                 <h4 class="font-semibold text-yellow-800 mb-2">📱 Confirm Phone Number</h4>
-                <p class="text-sm text-yellow-700 mb-3">Ask patient: "Is (385) 201-8161 your current smartphone number?"</p>
+                <p class="text-sm text-yellow-700 mb-3">Confirm: "${participantPhone}" - Is this correct for receiving the demo SMS?</p>
                 <div class="flex space-x-3">
                     <button onclick="confirmPhone(true)" 
                         class="flex-1 bg-green-600 text-white py-2 px-3 rounded font-medium hover:bg-green-700 transition-colors">
-                        ✓ Patient Says Yes
+                        ✓ Yes, Send SMS
                     </button>
                     <button onclick="confirmPhone(false)" 
                         class="flex-1 bg-gray-400 text-white py-2 px-3 rounded font-medium hover:bg-gray-500 transition-colors">
-                        ✗ Need Different Number
+                        ✗ Edit Number
                     </button>
                 </div>
             `;
             phoneDiv.classList.remove('hidden');
 
-            logActivity('📱 Requesting phone number confirmation from patient', 'info');
+            logActivity(`📱 Confirming phone number: ${participantPhone}`, 'info');
         }
 
         function confirmPhone(confirmed) {
             if (confirmed) {
-                logActivity('✅ Phone number confirmed by patient', 'success');
+                logActivity('✅ Phone number confirmed by visitor', 'success');
                 showSMSSection();
             } else {
-                logActivity('⚠️ Patient requested different phone number', 'warning');
+                logActivity('⚠️ Visitor requested different phone number', 'warning');
                 // In real demo, CPSS would update the phone number
             }
         }
@@ -352,32 +371,58 @@
 
         async function sendSMS() {
             const smsBtn = document.getElementById('smsBtn');
-            smsBtn.textContent = 'Sending SMS...';
+            const participantPhone = document.getElementById('visitorPhone').value;
+            
+            smsBtn.textContent = 'Sending Real SMS...';
             smsBtn.disabled = true;
 
             updateStep(2);
-            logActivity('📤 Sending SMS with enrollment link...', 'info');
+            logActivity('📤 Sending REAL SMS via Notifyre...', 'info');
 
-            // Update patient status
-            const patientStatus = document.getElementById('patientStatus');
-            patientStatus.innerHTML = `
-                <div class="w-16 h-16 bg-blue-500 rounded-full mx-auto mb-4 flex items-center justify-center">
-                    <span class="text-2xl text-white">📱</span>
-                </div>
-                <p class="text-blue-600 font-medium">SMS received! Opening enrollment link...</p>
-            `;
+            try {
+                // Send real SMS via backend API
+                const response = await fetch('/api/recovery-day/send-demo-sms', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        phoneNumber: participantPhone,
+                        patientName: 'Alex Demo',
+                        demoMode: true
+                    })
+                });
 
-            // Simulate SMS delay
-            await new Promise(resolve => setTimeout(resolve, 2000));
+                const result = await response.json();
 
-            logActivity('✅ SMS sent successfully to (385) 201-8161', 'success');
+                if (result.success) {
+                    logActivity(`✅ Real SMS sent successfully to ${participantPhone}`, 'success');
+                    logActivity(`📱 Message ID: ${result.messageId} via ${result.provider}`, 'info');
+                    
+                    // Update patient status
+                    const patientStatus = document.getElementById('patientStatus');
+                    patientStatus.innerHTML = `
+                        <div class="w-16 h-16 bg-green-500 rounded-full mx-auto mb-4 flex items-center justify-center">
+                            <span class="text-2xl text-white">📱</span>
+                        </div>
+                        <p class="text-green-600 font-medium">Real SMS sent! Check your phone...</p>
+                        <p class="text-sm text-gray-600 mt-2">Click the link in the SMS to access the patient app</p>
+                    `;
+                } else {
+                    throw new Error(result.error || 'SMS sending failed');
+                }
 
-            // Show SMS simulation
-            showSMSSimulation();
-
-            setTimeout(() => {
-                showEnrollmentBridge();
-            }, 3000);
+            } catch (error) {
+                console.error('SMS sending failed:', error);
+                logActivity(`❌ SMS sending failed: ${error.message}`, 'error');
+                
+                // Fallback to showing simulation
+                logActivity('🎭 Falling back to demo simulation', 'warning');
+                showSMSSimulation();
+            } finally {
+                smsBtn.textContent = 'Send SMS to Patient';
+                smsBtn.disabled = false;
+            }
         }
 
         function showSMSSimulation() {
@@ -385,14 +430,14 @@
             smsDiv.className = 'bg-gray-100 border-2 border-gray-300 rounded-2xl p-4 mb-4 fade-in';
             smsDiv.innerHTML = `
                 <div class="text-center mb-2">
-                    <span class="text-xs text-gray-500">SMS Message</span>
+                    <span class="text-xs text-gray-500">SMS Message (Fallback Demo)</span>
                 </div>
                 <div class="bg-blue-500 text-white rounded-2xl rounded-br-sm p-3 max-w-xs">
-                    <p class="text-sm">🎯 Welcome to Moonlit's CM program! You've earned 25 welcome points.</p>
-                    <p class="text-sm mt-2">📱 Complete enrollment: <span class="underline">moonlit.com/enroll?token=demo123</span></p>
+                    <p class="text-sm">🎯 Hi! Try the Moonlit CM patient app demo for Alex Demo. Experience the patient app here:</p>
+                    <p class="text-sm mt-2">📱 <span class="underline">localhost:3002/enroll?token=demo123</span></p>
                     <p class="text-xs mt-2 opacity-75">Reply STOP to opt out</p>
                 </div>
-                <div class="text-right text-xs text-gray-500 mt-1">Now</div>
+                <div class="text-right text-xs text-gray-500 mt-1">Demo Mode</div>
             `;
             smsDiv.classList.remove('hidden');
         }

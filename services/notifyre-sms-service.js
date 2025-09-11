@@ -125,17 +125,15 @@ class NotifyreSMSService {
     /**
      * Send enrollment link SMS for Recovery Day demo
      */
-    async sendEnrollmentSMS(toNumber, enrollmentToken, patientName) {
-        const enrollmentUrl = `${process.env.ENROLLMENT_BASE_URL || 'http://localhost:3000'}/enroll?token=${enrollmentToken}`;
+    async sendEnrollmentSMS(toNumber, enrollmentToken, patientName, visitorName = null) {
+        // Use production URL if deployed, otherwise localhost
+        const baseUrl = process.env.DEPLOYMENT_URL || 'http://localhost:3002';
+        const enrollmentUrl = `${baseUrl}/enroll?token=${enrollmentToken}`;
         
-        const message = `Hi ${patientName}! 
-
-Welcome to the moonlit Recovery Program. Complete your enrollment here: ${enrollmentUrl}
-
-This secure link is valid for 24 hours. Reply STOP to opt out.
-
-- moonlit Recovery Team`;
-
+        const message = visitorName 
+            ? `Hi ${visitorName}! This is the Moonlit CM demo for ${patientName}. Experience the patient app here: ${enrollmentUrl}`
+            : `Hi ${patientName}! Welcome to Moonlit's CM program. Complete enrollment: ${enrollmentUrl}`;
+        
         return this.sendSMS(toNumber, message);
     }
 

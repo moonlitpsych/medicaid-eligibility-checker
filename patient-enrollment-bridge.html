@@ -53,7 +53,7 @@
                         <span class="text-3xl text-white">🎯</span>
                     </div>
                     <h1 class="text-2xl font-bold text-gray-800 mb-2">Welcome to Moonlit!</h1>
-                    <p class="text-gray-600">Complete your Contingency Management program enrollment</p>
+                    <p class="text-gray-600">Experience our Contingency Management program demo</p>
                 </div>
 
                 <div id="tokenError" class="hidden bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
@@ -68,17 +68,83 @@
                     </div>
                 </div>
 
-                <div id="enrollmentInfo" class="space-y-4 mb-8">
-                    <!-- Will be populated with patient info from token -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <h3 class="font-semibold text-blue-900 mb-2">Demo Overview</h3>
+                    <ul class="text-sm text-blue-800 space-y-1">
+                        <li>🎯 Experience the Moonlit CM patient app</li>
+                        <li>🏆 Earn 25 welcome points instantly</li>
+                        <li>🧪 Complete drug tests (+15 points)</li>
+                        <li>🎰 Spin the roulette for real cash prizes!</li>
+                    </ul>
                 </div>
 
-                <button onclick="showConsent()" id="continueBtn" 
+                <button onclick="showVisitorInfo()" id="continueBtn" 
                     class="w-full bg-gradient-to-r from-moonlit-500 to-moonlit-600 text-white py-4 px-6 rounded-xl text-lg font-semibold hover:from-moonlit-600 hover:to-moonlit-700 transition-all duration-200 shadow-lg">
-                    Continue Enrollment
+                    Start Demo Experience
                 </button>
 
                 <div class="text-center mt-6">
-                    <p class="text-sm text-gray-500">🔒 Secure HIPAA-compliant enrollment</p>
+                    <p class="text-sm text-gray-500">🔒 This is a demo experience - no real patient data required</p>
+                </div>
+            </div>
+
+            <!-- Step 1.5: Visitor Info Collection -->
+            <div id="visitorInfo" class="bg-white rounded-2xl shadow-2xl p-8 hidden">
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <span class="text-2xl text-white">👋</span>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-800">Tell Us About Yourself</h2>
+                    <p class="text-gray-600 text-sm">Help us improve our demos (optional)</p>
+                </div>
+
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
+                        <input type="text" id="visitorName" 
+                            class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-moonlit-500 focus:border-moonlit-500"
+                            placeholder="First and last name (optional)">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Your Role</label>
+                        <select id="visitorRole" 
+                            class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-moonlit-500 focus:border-moonlit-500">
+                            <option value="">Select your role (optional)</option>
+                            <option value="CPSS">CPSS (Certified Peer Support Specialist)</option>
+                            <option value="Clinician">Clinician</option>
+                            <option value="Social Worker">Social Worker</option>
+                            <option value="Administrator">Administrator</option>
+                            <option value="Researcher">Researcher</option>
+                            <option value="Student">Student</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Organization</label>
+                        <input type="text" id="visitorOrg" 
+                            class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-moonlit-500 focus:border-moonlit-500"
+                            placeholder="Hospital, clinic, or organization (optional)">
+                    </div>
+                    
+                    <label class="flex items-start">
+                        <input type="checkbox" id="followUpConsent" class="mt-1 mr-3 h-4 w-4 text-moonlit-600 focus:ring-moonlit-500 border-gray-300 rounded">
+                        <span class="text-sm text-gray-700">
+                            OK to follow up after Recovery Day with CM program information?
+                        </span>
+                    </label>
+                </div>
+
+                <div class="flex space-x-4">
+                    <button onclick="showLanding()" 
+                        class="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors">
+                        Back
+                    </button>
+                    <button onclick="showConsent()" 
+                        class="flex-1 bg-gradient-to-r from-moonlit-500 to-moonlit-600 text-white py-3 px-4 rounded-lg font-medium hover:from-moonlit-600 hover:to-moonlit-700 transition-all duration-200">
+                        Continue to Demo
+                    </button>
                 </div>
             </div>
 
@@ -329,7 +395,39 @@
             document.getElementById('landing').classList.add('fade-in');
         }
 
-        function showConsent() {
+        function showVisitorInfo() {
+            hideAll();
+            document.getElementById('visitorInfo').classList.remove('hidden');
+            document.getElementById('visitorInfo').classList.add('slide-up');
+        }
+
+        async function showConsent() {
+            // Store visitor information if provided
+            const visitorData = {
+                name: document.getElementById('visitorName')?.value || '',
+                role: document.getElementById('visitorRole')?.value || '',
+                organization: document.getElementById('visitorOrg')?.value || '',
+                consent: document.getElementById('followUpConsent')?.checked || false,
+                phone: 'captured-via-sms', // Phone was used to send SMS
+                source: 'patient-app-demo'
+            };
+
+            // Store visitor data if any info was provided
+            if (visitorData.name || visitorData.role || visitorData.organization || visitorData.consent) {
+                try {
+                    await fetch('/api/recovery-day/demo-visitor', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(visitorData)
+                    });
+                    console.log('📝 Visitor info stored for follow-up');
+                } catch (error) {
+                    console.warn('Failed to store visitor info:', error.message);
+                }
+            }
+
             hideAll();
             document.getElementById('consent').classList.remove('hidden');
             document.getElementById('consent').classList.add('slide-up');
@@ -348,7 +446,7 @@
         }
 
         function hideAll() {
-            document.querySelectorAll('#landing, #consent, #account, #success').forEach(el => {
+            document.querySelectorAll('#landing, #visitorInfo, #consent, #account, #success').forEach(el => {
                 el.classList.add('hidden');
                 el.classList.remove('fade-in', 'slide-up');
             });

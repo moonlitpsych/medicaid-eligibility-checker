@@ -8,6 +8,10 @@
     "preview": "vite preview",
     "backend": "node server.js",
     "backend-dev": "nodemon server.js",
+    "patient-app": "node patient-app-server.js",
+    "patient-app-dev": "nodemon patient-app-server.js",
+    "demo": "concurrently \"npm run backend\" \"npm run patient-app\"",
+    "demo-dev": "concurrently \"npm run backend-dev\" \"npm run patient-app-dev\"",
     "vercel-dev": "vercel dev",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -36,6 +40,7 @@
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.1",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^8.2.2",
     "nodemon": "^3.1.10",
     "postcss": "^8.5.6",
     "vite": "^7.1.4"
