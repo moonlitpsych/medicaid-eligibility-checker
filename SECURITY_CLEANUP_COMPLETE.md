@@ -46,10 +46,10 @@
 ### Local Verification
 Searched entire git history for exposed credentials:
 ```bash
-git log -p --all -S "3shz8trtYF2M06!N"        # ✅ UHIN password NOT FOUND
-git log -p --all -S "1b4742ca8e3faf65..."     # ✅ IntakeQ key NOT FOUND
-git log -p --all -S "hmX8entx_pUFmi8KjX7..."  # ✅ Supabase key NOT FOUND
-git log -p --all -S "h@i9hiS4}92PEwd5"        # ✅ Old OA password NOT FOUND
+git log -p --all -S "[REDACTED-UHIN-PWD]"      # ✅ UHIN password NOT FOUND
+git log -p --all -S "[REDACTED-INTAKEQ]"       # ✅ IntakeQ key NOT FOUND
+git log -p --all -S "[REDACTED-SUPABASE]"      # ✅ Supabase key NOT FOUND
+git log -p --all -S "[REDACTED-OA-PWD]"        # ✅ Old OA password NOT FOUND
 ```
 
 ### GitHub Verification (User Action Required)
