@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: medicaid-eligibility-api
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      # Office Ally API Credentials
+      - key: OFFICE_ALLY_ENDPOINT
+        sync: false
+      - key: OFFICE_ALLY_RECEIVER_ID
+        sync: false
+      - key: OFFICE_ALLY_SENDER_ID
+        sync: false
+      - key: OFFICE_ALLY_USERNAME
+        sync: false
+      - key: OFFICE_ALLY_PASSWORD
+        sync: false
+      # Office Ally SFTP Credentials
+      - key: OFFICE_ALLY_SFTP_HOST
+        sync: false
+      - key: OFFICE_ALLY_SFTP_PORT
+        value: 22
+      - key: OFFICE_ALLY_SFTP_USERNAME
+        sync: false
+      - key: OFFICE_ALLY_SFTP_PASSWORD
+        sync: false
+      # Provider Information
+      - key: PROVIDER_NPI
+        sync: false
+      - key: PROVIDER_NAME
+        sync: false
+      # Supabase Database
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      # IntakeQ API
+      - key: INTAKEQ_API_KEY
+        sync: false
+    healthCheckPath: /
