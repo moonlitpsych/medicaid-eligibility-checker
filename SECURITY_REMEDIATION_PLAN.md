@@ -174,11 +174,11 @@ brew install bfg  # or download from https://rtyley.github.io/bfg-repo-cleaner/
 
 # Create a file with secrets to remove
 cat > secrets.txt <<EOF
-[REDACTED]
-[REDACTED]
-[REDACTED]
-***REDACTED-SUPABASE-ANON-KEY***
-***REDACTED-SUPABASE-SERVICE-KEY***
+[YOUR-OLD-PASSWORD]
+[YOUR-OLD-UHIN-PASSWORD]
+[YOUR-OLD-INTAKEQ-KEY]
+[YOUR-OLD-SUPABASE-ANON-KEY]
+[YOUR-OLD-SUPABASE-SERVICE-KEY]
 EOF
 
 # Run BFG to replace secrets

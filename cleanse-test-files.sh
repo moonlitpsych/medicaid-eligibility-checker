@@ -19,12 +19,12 @@ TEST_FILES=(
     "debug-x12-comparison.js"
 )
 
-# Credentials to replace
+# Credentials to replace (old values redacted for security)
 declare -A REPLACEMENTS=(
-    ["moonlit"]="[REDACTED-USERNAME]"
-    ["***REDACTED-OLD-OA-PASSWORD***"]="[REDACTED-PASSWORD]"
+    ["[OLD-USERNAME]"]="[REDACTED-USERNAME]"
+    ["[OLD-PASSWORD]"]="[REDACTED-PASSWORD]"
     ["1161680"]="[REDACTED-SENDER-ID]"
-    ["***REDACTED-UHIN-PASSWORD***"]="[REDACTED-UHIN-PASSWORD]"
+    ["[OLD-UHIN-PASSWORD]"]="[REDACTED-UHIN-PASSWORD]"
     ["MoonlitProd"]="[REDACTED-UHIN-USERNAME]"
 )
 
@@ -32,15 +32,13 @@ for file in "${TEST_FILES[@]}"; do
     if [ -f "$file" ]; then
         echo "  📝 Cleansing $file..."
 
-        # Replace credentials
+        # Replace credentials with environment variables
         sed -i.bak \
-            -e "s/username: process.env.OFFICE_ALLY_USERNAME || 'moonlit'/username: process.env.OFFICE_ALLY_USERNAME/g" \
-            -e "s/password: process.env.OFFICE_ALLY_PASSWORD || '***REDACTED-OLD-OA-PASSWORD***'/password: process.env.OFFICE_ALLY_PASSWORD/g" \
-            -e "s/senderID: '1161680'/senderID: process.env.OFFICE_ALLY_SENDER_ID/g" \
-            -e "s/'moonlit'/'[REDACTED-USERNAME]'/g" \
-            -e "s/'***REDACTED-OLD-OA-PASSWORD***'/'[REDACTED-PASSWORD]'/g" \
+            -e "s/username: process.env.OFFICE_ALLY_USERNAME || '[^']*'/username: process.env.OFFICE_ALLY_USERNAME/g" \
+            -e "s/password: process.env.OFFICE_ALLY_PASSWORD || '[^']*'/password: process.env.OFFICE_ALLY_PASSWORD/g" \
+            -e "s/senderID: '[^']*'/senderID: process.env.OFFICE_ALLY_SENDER_ID/g" \
+            -e "s/'[^']*moonlit[^']*'/'[REDACTED-USERNAME]'/g" \
             -e "s/'1161680'/'[REDACTED-SENDER-ID]'/g" \
-            -e "s/'***REDACTED-UHIN-PASSWORD***'/'[REDACTED-UHIN-PASSWORD]'/g" \
             -e "s/'MoonlitProd'/'[REDACTED-UHIN-USERNAME]'/g" \
             "$file"
 

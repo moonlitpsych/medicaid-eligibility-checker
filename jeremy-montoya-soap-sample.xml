@@ -7,7 +7,7 @@ xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-s
 xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
 <wsse:Username>MoonlitProd</wsse:Username>
 <wsse:Password
-Type="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText">***REDACTED-UHIN-PASSWORD***</wsse:Password>
+Type="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText">[REDACTED]</wsse:Password>
 </wsse:UsernameToken>
 </wsse:Security>
 </soap:Header>

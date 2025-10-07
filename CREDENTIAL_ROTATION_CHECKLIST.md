@@ -27,7 +27,7 @@
 
 **Current Exposed Credentials**:
 - Username: `moonlit`
-- Password: `***REDACTED-OLD-OA-PASSWORD***` ⚠️ COMPROMISED
+- Password: `[REDACTED]` ⚠️ COMPROMISED
 - Sender ID: `1161680` (not sensitive, can keep)
 
 ---
@@ -56,8 +56,8 @@
 - [ ] **Verify**: No database errors in application logs
 
 **Current Exposed Keys**:
-- Anon key: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...hmX8entx_pUFmi8KjX7NWDw46TmEGbes-CvOPWew4Bg` ⚠️ COMPROMISED
-- Service key: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...0aSAsxU8FNuHRcmPmvE01HIclVMkiNW8C3zXb467r-Q` ⚠️ COMPROMISED
+- Anon key: `[REDACTED]` ⚠️ COMPROMISED
+- Service key: `[REDACTED]` ⚠️ COMPROMISED
 
 ---
 
@@ -68,7 +68,7 @@
 
 - [ ] **Login**: https://intakeq.com
 - [ ] **Navigate**: Settings → API Keys
-- [ ] **Revoke**: Old key `***REDACTED-INTAKEQ-KEY***`
+- [ ] **Revoke**: Old key `[REDACTED]`
 - [ ] **Generate**: New API key
 - [ ] **Copy**: New key
 - [ ] **Update**: `.env.local` with new `INTAKEQ_API_KEY`
@@ -80,7 +80,7 @@
 - [ ] **Verify**: EMR data sync still working
 
 **Current Exposed Key**:
-- API Key: `***REDACTED-INTAKEQ-KEY***` ⚠️ COMPROMISED
+- API Key: `[REDACTED]` ⚠️ COMPROMISED
 
 ---
 
@@ -96,7 +96,7 @@
 
 **Current Exposed Credentials**:
 - Username: `MoonlitProd` (can keep)
-- Password: `***REDACTED-UHIN-PASSWORD***` ⚠️ COMPROMISED
+- Password: `[REDACTED]` ⚠️ COMPROMISED
 
 ---
 
