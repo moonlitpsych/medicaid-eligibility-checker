@@ -1001,6 +1001,11 @@ if (recoveryDayRouter) {
     console.log('⚠️ Recovery Day demo routes disabled (module failed to load)');
 }
 
+// Root route - redirect to eligibility interface
+app.get('/', (req, res) => {
+    res.redirect('/public/universal-eligibility-interface.html');
+});
+
 // Initialize CM database on server start
 async function startServer() {
     if (initializeCMDatabaseCanonical) {
