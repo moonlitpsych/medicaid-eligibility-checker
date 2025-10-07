@@ -9,9 +9,9 @@ require('dotenv').config();
 
 const OFFICE_ALLY_CONFIG = {
     endpoint: 'https://wsd.officeally.com/TransactionService/rtx.svc',
-    username: process.env.OFFICE_ALLY_USERNAME || 'moonlit',
-    password: process.env.OFFICE_ALLY_PASSWORD || '***REDACTED-OLD-OA-PASSWORD***',
-    senderID: '1161680',
+    username: process.env.OFFICE_ALLY_USERNAME,
+    password: process.env.OFFICE_ALLY_PASSWORD,
+    senderID: process.env.OFFICE_ALLY_SENDER_ID,
     receiverID: 'OFFALLY',
     providerNPI: '1124778121',  // Travis Norseth - enrolled with Aetna
     providerName: 'TRAVIS NORSETH'

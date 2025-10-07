@@ -9,14 +9,14 @@
 const OFFICE_ALLY_CONFIG = {
     endpoint: process.env.OFFICE_ALLY_ENDPOINT || 'https://wsd.officeally.com/TransactionService/rtx.svc',
     receiverID: 'OFFALLY',
-    senderID: '1161680', 
-    username: 'moonlit',
-    password: '***REDACTED-OLD-OA-PASSWORD***',
+    senderID: process.env.OFFICE_ALLY_SENDER_ID, 
+    username: '[REDACTED-USERNAME]',
+    password: '[REDACTED-PASSWORD]',
     providerNPI: process.env.PROVIDER_NPI || '1275348807',
     providerName: process.env.PROVIDER_NAME || 'MOONLIT_PLLC',
-    isa06: '1161680',
+    isa06: '[REDACTED-SENDER-ID]',
     isa08: 'OFFALLY', 
-    gs02: '1161680', 
+    gs02: '[REDACTED-SENDER-ID]', 
     gs03: 'OFFALLY'
 };
 
@@ -107,7 +107,7 @@ const gsParts = gsSegment.split('*');
 
 console.log('\nGS Segment Analysis:');
 console.log(`GS01 (Functional ID): "${gsParts[1]}" - Should be "HS" for 270 ${gsParts[1] === 'HS' ? '✅' : '❌'}`);
-console.log(`GS02 (Sender Code): "${gsParts[2]}" - Should be OA assigned (1161680) ${gsParts[2] === '1161680' ? '✅' : '❌'}`);
+console.log(`GS02 (Sender Code): "${gsParts[2]}" - Should be OA assigned (1161680) ${gsParts[2] === '[REDACTED-SENDER-ID]' ? '✅' : '❌'}`);
 console.log(`GS03 (Receiver Code): "${gsParts[3]}" - Should be "OFFALLY" ${gsParts[3] === 'OFFALLY' ? '✅' : '❌'}`);
 console.log(`GS08 (Version): "${gsParts[8]}" - Should be "005010X279A1" ${gsParts[8] === '005010X279A1' ? '✅' : '❌'}`);
 

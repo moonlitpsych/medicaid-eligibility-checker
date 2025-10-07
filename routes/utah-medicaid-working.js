@@ -1,14 +1,19 @@
-// routes/utah-medicaid-working.js - WORKING Utah Medicaid eligibility (DO NOT MODIFY)
+// routes/utah-medicaid-working.js - Utah Medicaid eligibility
 // Based on successful test-office-ally-final.js format
 
+// Load dotenv for credentials
+if (!process.env.OFFICE_ALLY_USERNAME) {
+    require('dotenv').config({ path: '.env.local' });
+}
+
 const OFFICE_ALLY_CONFIG = {
-    endpoint: 'https://wsd.officeally.com/TransactionService/rtx.svc',
-    username: process.env.OFFICE_ALLY_USERNAME || 'moonlit',
-    password: process.env.OFFICE_ALLY_PASSWORD || '***REDACTED-OLD-OA-PASSWORD***',
-    senderID: '1161680',
-    receiverID: 'OFFALLY',
-    providerNPI: '1275348807',
-    providerName: 'MOONLIT PLLC'
+    endpoint: process.env.OFFICE_ALLY_ENDPOINT || 'https://wsd.officeally.com/TransactionService/rtx.svc',
+    username: process.env.OFFICE_ALLY_USERNAME,
+    password: process.env.OFFICE_ALLY_PASSWORD,
+    senderID: process.env.OFFICE_ALLY_SENDER_ID,
+    receiverID: process.env.OFFICE_ALLY_RECEIVER_ID || 'OFFALLY',
+    providerNPI: process.env.PROVIDER_NPI,
+    providerName: process.env.PROVIDER_NAME
 };
 
 // WORKING X12 270 format (Name/DOB only, no SSN/ID)
@@ -21,13 +26,13 @@ function generateWorkingX12_270(patient) {
     const dob = (patient.dob || '').replace(/-/g,'');
 
     const pad15 = s => (s ?? '').toString().padEnd(15, ' ');
-    const ISA06 = pad15('1161680');
-    const ISA08 = pad15('OFFALLY');
+    const ISA06 = pad15(OFFICE_ALLY_CONFIG.senderID);
+    const ISA08 = pad15(OFFICE_ALLY_CONFIG.receiverID);
 
     const seg = [];
 
     seg.push(`ISA*00*          *00*          *ZZ*${ISA06}*01*${ISA08}*${yymmdd}*${hhmm}*^*00501*${ctrl}*0*P*:`);
-    seg.push(`GS*HS*1161680*OFFALLY*${ccyymmdd}*${hhmm}*${ctrl}*X*005010X279A1`);
+    seg.push(`GS*HS*${OFFICE_ALLY_CONFIG.senderID}*${OFFICE_ALLY_CONFIG.receiverID}*${ccyymmdd}*${hhmm}*${ctrl}*X*005010X279A1`);
     seg.push(`ST*270*0001*005010X279A1`);
     seg.push(`BHT*0022*13*MOONLIT-${ctrl}*${ccyymmdd}*${hhmm}`);
 
@@ -37,11 +42,11 @@ function generateWorkingX12_270(patient) {
 
     // 2100B: Information Receiver (organization)
     seg.push(`HL*2*1*21*1`);
-    seg.push(`NM1*1P*2*MOONLIT PLLC*****XX*1275348807`);
+    seg.push(`NM1*1P*2*${OFFICE_ALLY_CONFIG.providerName}*****XX*${OFFICE_ALLY_CONFIG.providerNPI}`);
 
     // 2100C: Subscriber (Name/DOB only - WORKING FORMAT!)
     seg.push(`HL*3*2*22*0`);
-    seg.push(`TRN*1*${ctrl}*1275348807*ELIGIBILITY`);
+    seg.push(`TRN*1*${ctrl}*${OFFICE_ALLY_CONFIG.providerNPI}*ELIGIBILITY`);
     seg.push(`NM1*IL*1*${patient.last?.toUpperCase()||''}*${patient.first?.toUpperCase()||''}`);
     seg.push(`DMG*D8*${dob}*${(patient.gender||'U').toUpperCase()}`);
     seg.push(`DTP*291*D8*${ccyymmdd}`);

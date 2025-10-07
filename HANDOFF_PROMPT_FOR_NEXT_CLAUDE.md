@@ -40,7 +40,7 @@ curl -X POST http://localhost:3000/api/medicaid/check \
 ### **Office Ally Integration** ⚡
 - **Status**: Production-ready, 400-800ms response times
 - **File**: `api-server.js` and `api/medicaid/check.js`
-- **Credentials**: `moonlit` / `***REDACTED-OLD-OA-PASSWORD***`
+- **Credentials**: `[REDACTED-USERNAME]` / `[REDACTED-PASSWORD]`
 - **Key Discovery**: Mental health carve-out detection works perfectly
 
 ### **Frontend Foundation** 🎨
@@ -89,8 +89,8 @@ Patients can have **medical ACO coverage + behavioral health Traditional FFS sim
 ### **Environment Variables (All Set)**
 ```bash
 # Office Ally (Production)
-OFFICE_ALLY_USERNAME=moonlit
-OFFICE_ALLY_PASSWORD=***REDACTED-OLD-OA-PASSWORD***
+OFFICE_ALLY_USERNAME=[REDACTED-USERNAME]
+OFFICE_ALLY_PASSWORD=[REDACTED-PASSWORD]
 
 # Database
 DATABASE_URL=postgresql://user:pass@host:5432/database

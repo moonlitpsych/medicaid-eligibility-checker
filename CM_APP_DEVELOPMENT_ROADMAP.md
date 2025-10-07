@@ -14,7 +14,7 @@
 - **Real-time Office Ally integration**: 400-800ms response times
 - **Mental health carve-out detection**: Service-specific coverage analysis
 - **ACO transition prediction**: Risk assessment for plan changes
-- **Production credentials**: `moonlit` / `***REDACTED-OLD-OA-PASSWORD***`
+- **Production credentials**: `[REDACTED-USERNAME]` / `[REDACTED-PASSWORD]`
 
 ### ✅ **Key Discovery: Behavioral Health FFS Exception**
 **Critical Finding**: Patients can have medical ACO + behavioral health FFS simultaneously
@@ -95,8 +95,8 @@ Medical Services (RTM 98980/98981) → Route based on coverage analysis
 ### **Environment Configuration Ready:**
 ```bash
 # Office Ally (Production Ready)
-OFFICE_ALLY_USERNAME=moonlit
-OFFICE_ALLY_PASSWORD=***REDACTED-OLD-OA-PASSWORD***
+OFFICE_ALLY_USERNAME=[REDACTED-USERNAME]
+OFFICE_ALLY_PASSWORD=[REDACTED-PASSWORD]
 OFFICE_ALLY_ENDPOINT=https://wsd.officeally.com/TransactionService/rtx.svc
 
 # Database
@@ -107,7 +107,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://alavxdxxttlfprkiwtrq.supabase.co
 SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 # IntakeQ EMR
-INTAKEQ_API_KEY=***REDACTED-INTAKEQ-KEY***
+INTAKEQ_API_KEY=[REDACTED-INTAKEQ-KEY]
 ```
 
 ---

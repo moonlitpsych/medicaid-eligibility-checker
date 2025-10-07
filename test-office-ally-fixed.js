@@ -4,9 +4,9 @@ require('dotenv').config();
 // Office Ally Configuration
 const OFFICE_ALLY_CONFIG = {
     endpoint: 'https://wsd.officeally.com/TransactionService/rtx.svc',
-    username: process.env.OFFICE_ALLY_USERNAME || 'moonlit',
-    password: process.env.OFFICE_ALLY_PASSWORD || '***REDACTED-OLD-OA-PASSWORD***', // Fallback for testing
-    senderID: '1161680',
+    username: process.env.OFFICE_ALLY_USERNAME,
+    password: process.env.OFFICE_ALLY_PASSWORD, // Fallback for testing
+    senderID: process.env.OFFICE_ALLY_SENDER_ID,
     receiverID: 'OFFALLY',
     payerID: 'UTMCD'
 };
@@ -37,7 +37,7 @@ function generateFixedX12_270(patient) {
 
     // Fix #2: Pad ISA06/ISA08 to 15 characters with spaces
     const pad15 = s => (s ?? '').toString().padEnd(15, ' ');
-    const ISA06 = pad15('1161680');
+    const ISA06 = pad15('[REDACTED-SENDER-ID]');
     const ISA08 = pad15('OFFALLY');
 
     // Fix #1: Build segments WITHOUT trailing "~"; we'll join with "~" once

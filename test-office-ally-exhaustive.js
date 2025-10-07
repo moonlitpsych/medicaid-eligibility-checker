@@ -12,9 +12,9 @@ const testResults = [];
 const OFFICE_ALLY_CONFIG = {
     endpoint: 'https://wsd.officeally.com/TransactionService/rtx.svc',
     receiverID: 'OFFALLY',
-    senderID: '1161680',
-    username: 'moonlit',
-    password: '***REDACTED-OLD-OA-PASSWORD***',
+    senderID: process.env.OFFICE_ALLY_SENDER_ID,
+    username: '[REDACTED-USERNAME]',
+    password: '[REDACTED-PASSWORD]',
     providerNPI: '1275348807',
     providerName: 'MOONLIT_PLLC',
     payerID: 'UTMCD'

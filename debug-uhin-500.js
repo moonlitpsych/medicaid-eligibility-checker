@@ -136,8 +136,8 @@ async function testTPNStrategies() {
         process.env.USE_OFFICE_ALLY_TPN = strategy.useOfficeAllyTPN.toString();
         process.env.ELIGIBILITY_PROVIDER = 'uhin';
         process.env.SIMULATION_MODE = 'false';
-        process.env.UHIN_USERNAME = 'MoonlitProd';
-        process.env.UHIN_PASSWORD = '***REDACTED-UHIN-PASSWORD***';
+        process.env.UHIN_USERNAME = '[REDACTED-UHIN-USERNAME]';
+        process.env.UHIN_PASSWORD = '[REDACTED-UHIN-PASSWORD]';
         
         try {
             // Import handler fresh for each test

@@ -241,7 +241,7 @@ try {
 ## ⚠️ **Critical Dependencies & Constraints**
 
 ### **Office Ally Integration**
-- **Working credentials**: `moonlit` / `***REDACTED-OLD-OA-PASSWORD***`  
+- **Working credentials**: `[REDACTED-USERNAME]` / `[REDACTED-PASSWORD]`  
 - **Test patients verified**: Jeremy Montoya, Tella Silver
 - **Response time**: 400-800ms average
 - **Utah Medicaid payer ID**: `UTMCD` 
