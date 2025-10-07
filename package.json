@@ -48,7 +48,7 @@
     "postcss": "^8.5.6",
     "vite": "^7.1.4"
   },
-  "main": "debug-uhin-500.js",
+  "main": "api-server.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rufusmd/medicaid-eligibility-checker.git"

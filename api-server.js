@@ -812,6 +812,171 @@ app.get('/api/test-database', async (req, res) => {
 });
 console.log('✅ Test database handler route registered at /api/test-database');
 
+// === PAYERS API ===
+// Get all payers with Office Ally IDs from database
+const { listConfiguredPayers } = require('./lib/payer-id-service');
+
+app.get('/api/payers/list', async (req, res) => {
+    try {
+        const { createClient } = require('@supabase/supabase-js');
+        const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL,
+            process.env.SUPABASE_SERVICE_KEY
+        );
+
+        const { data: payers, error } = await supabase
+            .from('payers')
+            .select('id, name, payer_type, state, oa_eligibility_270_id, oa_professional_837p_id, oa_remit_835_id')
+            .order('name');
+
+        if (error) {
+            throw error;
+        }
+
+        // Transform to match frontend expectations
+        const formattedPayers = (payers || []).map(p => ({
+            id: p.id, // ✅ Use actual UUID from database
+            name: p.name,
+            category: p.payer_type, // Map payer_type to category for frontend
+            state: p.state,
+            has_eligibility_id: !!p.oa_eligibility_270_id,
+            has_claims_id: !!p.oa_professional_837p_id,
+            has_remittance_id: !!p.oa_remit_835_id,
+            oa_eligibility_270_id: p.oa_eligibility_270_id,
+            oa_professional_837p_id: p.oa_professional_837p_id,
+            oa_remit_835_id: p.oa_remit_835_id
+        }));
+
+        res.json({
+            success: true,
+            count: formattedPayers.length,
+            payers: formattedPayers
+        });
+    } catch (error) {
+        console.error('Failed to fetch payers:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+console.log('✅ Payers list API registered at /api/payers/list');
+
+// === INTAKEQ INTEGRATION API ===
+const {
+    syncIntakeQClientsToDatabase,
+    getCachedIntakeQClients,
+    getIntakeQClientWithPayer
+} = require('./lib/intakeq-service');
+
+// Get list of cached IntakeQ clients
+app.get('/api/intakeq/clients/list', async (req, res) => {
+    try {
+        const { limit = 100, search } = req.query;
+        const clients = await getCachedIntakeQClients({ limit: parseInt(limit), search });
+
+        res.json({
+            success: true,
+            count: clients.length,
+            clients: clients.map(c => ({
+                id: c.id,
+                intakeq_client_id: c.intakeq_client_id,
+                first_name: c.first_name,
+                last_name: c.last_name,
+                full_name: `${c.first_name} ${c.last_name}`,
+                date_of_birth: c.date_of_birth,
+                email: c.email,
+                phone: c.phone,
+                primary_insurance_name: c.primary_insurance_name,
+                primary_insurance_policy_number: c.primary_insurance_policy_number,
+                last_synced_at: c.last_synced_at
+            }))
+        });
+    } catch (error) {
+        console.error('Failed to fetch cached clients:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+console.log('✅ IntakeQ clients list API registered at /api/intakeq/clients/list');
+
+// Get single IntakeQ client with mapped payer
+app.get('/api/intakeq/clients/:clientId', async (req, res) => {
+    try {
+        const { clientId } = req.params;
+        const client = await getIntakeQClientWithPayer(clientId);
+
+        res.json({
+            success: true,
+            client
+        });
+    } catch (error) {
+        console.error(`Failed to fetch client ${req.params.clientId}:`, error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+console.log('✅ IntakeQ client detail API registered at /api/intakeq/clients/:clientId');
+
+// Sync IntakeQ clients to database
+app.post('/api/intakeq/clients/sync', async (req, res) => {
+    try {
+        console.log('📥 Starting IntakeQ sync...');
+        const results = await syncIntakeQClientsToDatabase();
+
+        res.json({
+            success: true,
+            message: 'IntakeQ clients synced successfully',
+            results
+        });
+    } catch (error) {
+        console.error('Failed to sync IntakeQ clients:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+console.log('✅ IntakeQ sync API registered at /api/intakeq/clients/sync');
+
+// Claims Submission Routes
+const { handleSubmitClaim, handleGetClaimsHistory } = require('./routes/claims-submission');
+const { getBillingProvider, getActiveProviders } = require('./lib/provider-service');
+
+app.post('/api/claims/submit-837p', handleSubmitClaim);
+console.log('✅ Claims submission API registered at /api/claims/submit-837p');
+
+app.get('/api/claims/history', handleGetClaimsHistory);
+console.log('✅ Claims history API registered at /api/claims/history');
+
+// Get billing provider info (Moonlit PLLC)
+app.get('/api/providers/billing', async (req, res) => {
+    try {
+        const provider = await getBillingProvider();
+        res.json({ success: true, provider });
+    } catch (error) {
+        console.error('Error fetching billing provider:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+console.log('✅ Billing provider API registered at /api/providers/billing');
+
+// Get active providers for dropdown
+app.get('/api/providers/active', async (req, res) => {
+    try {
+        const providers = await getActiveProviders();
+        res.json({ success: true, providers });
+    } catch (error) {
+        console.error('Error fetching active providers:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+console.log('✅ Active providers API registered at /api/providers/active');
+
 // CM (Contingency Management) Routes - Canonical Architecture
 if (canonicalPointsRouter) {
     app.use('/api/cm', canonicalPointsRouter);
