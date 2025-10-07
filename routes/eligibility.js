@@ -7,19 +7,43 @@ function getEligibilityProvider() {
 }
 
 // OFFICE ALLY CONFIG
+// Load dotenv for development
+if (!process.env.OFFICE_ALLY_USERNAME) {
+    require('dotenv').config({ path: '.env.local' });
+}
+
 const OFFICE_ALLY_CONFIG = {
     endpoint: process.env.OFFICE_ALLY_ENDPOINT || 'https://wsd.officeally.com/TransactionService/rtx.svc',
-    receiverID: 'OFFALLY',
-    senderID: '1161680', 
-    username: 'moonlit',
-    password: '***REDACTED-OLD-OA-PASSWORD***',
-    providerNPI: process.env.PROVIDER_NPI || '1275348807',
-    providerName: process.env.PROVIDER_NAME || 'MOONLIT_PLLC',
-    isa06: '1161680',
-    isa08: 'OFFALLY', 
-    gs02: '1161680', 
-    gs03: 'OFFALLY'
+    receiverID: process.env.OFFICE_ALLY_RECEIVER_ID || 'OFFALLY',
+    senderID: process.env.OFFICE_ALLY_SENDER_ID,
+    username: process.env.OFFICE_ALLY_USERNAME,
+    password: process.env.OFFICE_ALLY_PASSWORD,
+    providerNPI: process.env.PROVIDER_NPI,
+    providerName: process.env.PROVIDER_NAME,
+    isa06: process.env.OFFICE_ALLY_SENDER_ID,
+    isa08: process.env.OFFICE_ALLY_RECEIVER_ID || 'OFFALLY',
+    gs02: process.env.OFFICE_ALLY_SENDER_ID,
+    gs03: process.env.OFFICE_ALLY_RECEIVER_ID || 'OFFALLY'
 };
+
+// Validate required Office Ally credentials
+function validateOfficeAllyConfig() {
+    const required = ['senderID', 'username', 'password', 'providerNPI', 'providerName'];
+    const missing = required.filter(key => !OFFICE_ALLY_CONFIG[key]);
+
+    if (missing.length > 0) {
+        throw new Error(`Missing required Office Ally configuration: ${missing.join(', ')}. Please check your .env.local file.`);
+    }
+}
+
+// Call validation at module load
+try {
+    validateOfficeAllyConfig();
+    console.log('✅ Office Ally configuration validated');
+} catch (error) {
+    console.warn('⚠️  Office Ally configuration incomplete:', error.message);
+    console.warn('⚠️  Set credentials in .env.local file (see .env.example for template)');
+}
 
 // Payer configurations for different insurance companies
 const PAYER_CONFIGS = {

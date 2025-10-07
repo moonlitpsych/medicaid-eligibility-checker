@@ -12,11 +12,15 @@ app.use(express.static('public'));
 // Import the eligibility check handlers
 const checkEligibility = require('./routes/eligibility.js');
 const checkUtahMedicaidEligibility = require('./routes/utah-medicaid-working.js');
+const checkUniversalEligibility = require('./routes/universal-eligibility.js');
+const checkEnhancedEligibility = require('./routes/universal-eligibility-enhanced.js');
 const recoveryDayRoutes = require('./api/recovery-day-routes.js');
 
 // API Routes
 app.post('/api/medicaid/check', checkEligibility);
 app.post('/api/utah-medicaid/check', checkUtahMedicaidEligibility); // WORKING Utah Medicaid service
+app.post('/api/universal-eligibility/check', checkUniversalEligibility); // Universal multi-payer eligibility checker (WORKING VERSION)
+app.post('/api/universal-eligibility/enhanced', checkEnhancedEligibility); // Enhanced eligibility with detailed copay parsing (EXPERIMENTAL)
 app.use('/api/recovery-day', recoveryDayRoutes); // Recovery Day demo routes
 
 // Serve the main interface
