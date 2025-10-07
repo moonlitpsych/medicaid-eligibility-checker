@@ -12,10 +12,10 @@
 **Total Exposed Credentials Found**: 21+ files containing hardcoded secrets
 **Git Commits Affected**: 5+ commits with exposed credentials
 **Credential Types Exposed**:
-- Office Ally API credentials (username: `moonlit`, password: `***REDACTED-OLD-OA-PASSWORD***`)
-- UHIN credentials (username: `MoonlitProd`, password: `***REDACTED-UHIN-PASSWORD***`)
+- Office Ally API credentials (username: `moonlit`, password: `[REDACTED]`)
+- UHIN credentials (username: `MoonlitProd`, password: `[REDACTED]`)
 - Supabase API keys (anon key, service role key)
-- IntakeQ API key (`***REDACTED-INTAKEQ-KEY***`)
+- IntakeQ API key (`[REDACTED]`)
 - Notifyre SMS tokens (in some files)
 
 ---
@@ -53,7 +53,7 @@
 
 **Actions**:
 - Replace hardcoded `username: 'moonlit'` with `process.env.OFFICE_ALLY_USERNAME`
-- Replace hardcoded `password: '***REDACTED-OLD-OA-PASSWORD***'` with `process.env.OFFICE_ALLY_PASSWORD`
+- Replace hardcoded `password: '[REDACTED]'` with `process.env.OFFICE_ALLY_PASSWORD`
 - Replace hardcoded `senderID: '1161680'` with `process.env.OFFICE_ALLY_SENDER_ID`
 - Replace hardcoded NPI values with `process.env.PROVIDER_NPI`
 - Add validation to check env vars are set
@@ -174,9 +174,9 @@ brew install bfg  # or download from https://rtyley.github.io/bfg-repo-cleaner/
 
 # Create a file with secrets to remove
 cat > secrets.txt <<EOF
-***REDACTED-OLD-OA-PASSWORD***
-***REDACTED-UHIN-PASSWORD***
-***REDACTED-INTAKEQ-KEY***
+[REDACTED]
+[REDACTED]
+[REDACTED]
 ***REDACTED-SUPABASE-ANON-KEY***
 ***REDACTED-SUPABASE-SERVICE-KEY***
 EOF
@@ -238,7 +238,7 @@ git push origin --force --tags
 #### Task 5.4: IntakeQ API Key
 - [ ] Log into IntakeQ dashboard
 - [ ] Navigate to API settings
-- [ ] Revoke old key `***REDACTED-INTAKEQ-KEY***`
+- [ ] Revoke old key `[REDACTED]`
 - [ ] Generate new API key
 - [ ] Update `.env.local`
 - [ ] Test IntakeQ integration

@@ -73,7 +73,7 @@
 
 ### Credential Scan Results:
 ```
-✅ Office Ally password (h@i9hiS4...): 0 occurrences in source files
+✅ Office Ally password ([REDACTED]): 0 occurrences in source files
 ✅ Supabase keys: Only in .env.local (protected by .gitignore)
 ✅ IntakeQ key: Only in .env.local (protected by .gitignore)
 ✅ UHIN password: Only in .env.local (protected by .gitignore)

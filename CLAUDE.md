@@ -1,7 +1,174 @@
 # CLAUDE.md - Medicaid Eligibility Checker Project
 
-Updated CLAUDE.md for medicaid-eligibility-checker
-markdown# 🎯 RECOVERY DAY DEMO - COMPLETE SYSTEM ORCHESTRATION
+**Last Updated**: 2025-10-07
+**Status**: Universal eligibility checker operational with Utah Medicaid & Aetna support
+
+---
+
+## 🎯 NEXT STEPS: UUHP Integration & Payer Database
+
+### **Objective**: Add University of Utah Health Plans (UUHP) eligibility checking
+
+### **Current State** (as of October 7, 2025):
+✅ **Working Systems:**
+- Universal eligibility checker framework (`universal-eligibility-checker.js`)
+- Utah Medicaid eligibility (Name + DOB only, <1 second response)
+- Aetna eligibility (Name + DOB + Member ID)
+- Enhanced X12 271 parser (deductibles, OOP max, copays, coinsurance)
+- Member ID field (conditional display for commercial payers)
+- Managed care plan detection (SelectHealth, Molina, Optum)
+- Professional web UI at `/universal-eligibility-interface.html`
+
+✅ **Security:**
+- All credentials in environment variables
+- .gitignore preventing credential leaks
+- Security documentation complete
+
+### **Next Implementation: UUHP + Payer ID Database**
+
+#### **Phase 1: Payer ID Database Setup**
+
+**File Available**: `payers (1).xlsx - Payers.csv`
+This CSV contains all Office Ally real-time eligibility payer IDs and names.
+
+**Task**: Create Supabase table to store payer information for easy lookup
+
+**Why Supabase?**
+- Already using Supabase for practice database
+- Avoids hardcoding hundreds of payer IDs locally
+- Enables dynamic payer selection in UI
+- Can be updated/maintained via admin interface
+- Shared across all applications
+
+**Proposed Schema**:
+```sql
+CREATE TABLE payers (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    payer_name TEXT NOT NULL,
+    office_ally_payer_id TEXT UNIQUE NOT NULL,
+    payer_type TEXT, -- 'medicaid', 'commercial', 'medicare', etc.
+    requires_member_id BOOLEAN DEFAULT false,
+    requires_ssn BOOLEAN DEFAULT false,
+    notes TEXT,
+    is_active BOOLEAN DEFAULT true,
+    provider_npi TEXT, -- Which provider NPI to use for this payer
+    provider_name TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Index for fast lookups
+CREATE INDEX idx_payers_office_ally_id ON payers(office_ally_payer_id);
+CREATE INDEX idx_payers_active ON payers(is_active) WHERE is_active = true;
+
+-- Example data
+INSERT INTO payers (payer_name, office_ally_payer_id, payer_type, requires_member_id, provider_npi, provider_name) VALUES
+('Utah Medicaid', 'UTMCD', 'medicaid', false, '1275348807', 'Moonlit PLLC'),
+('Aetna', '60054', 'commercial', true, '1124778121', 'Travis Norseth'),
+('University of Utah Health Plans', '[TO_BE_DETERMINED]', 'commercial', true, '[TO_BE_DETERMINED]', '[TO_BE_DETERMINED]');
+```
+
+**Implementation Steps**:
+
+1. **Import CSV to Supabase**:
+   ```bash
+   # From the CSV file, create SQL insert statements
+   # Use Supabase SQL editor or import via dashboard
+   ```
+
+2. **Create Supabase Client** (`lib/supabase.js`):
+   ```javascript
+   const { createClient } = require('@supabase/supabase-js');
+
+   const supabase = createClient(
+       process.env.SUPABASE_URL,
+       process.env.SUPABASE_ANON_KEY
+   );
+
+   module.exports = { supabase };
+   ```
+
+3. **Update Universal Eligibility Checker**:
+   ```javascript
+   // In universal-eligibility-checker.js
+   const { supabase } = require('./lib/supabase');
+
+   async function getPayerConfig(payerIdentifier) {
+       // Look up payer by name or Office Ally ID
+       const { data, error } = await supabase
+           .from('payers')
+           .select('*')
+           .or(`payer_name.ilike.%${payerIdentifier}%,office_ally_payer_id.eq.${payerIdentifier}`)
+           .eq('is_active', true)
+           .single();
+
+       if (error || !data) {
+           throw new Error(`Payer not found: ${payerIdentifier}`);
+       }
+
+       return {
+           payerName: data.payer_name,
+           payerId: data.office_ally_payer_id,
+           requiresMemberId: data.requires_member_id,
+           requiresSSN: data.requires_ssn,
+           providerNPI: data.provider_npi,
+           providerName: data.provider_name
+       };
+   }
+   ```
+
+4. **Update UI to Load Payers from Database**:
+   - Create API endpoint: `GET /api/payers/active`
+   - Load payer dropdown dynamically
+   - Show/hide Member ID field based on `requires_member_id`
+
+#### **Phase 2: UUHP Integration**
+
+**Task**: Add UUHP to payer database and test eligibility
+
+**Steps**:
+1. Find UUHP payer ID in `payers (1).xlsx - Payers.csv`
+2. Determine which provider NPI to use with UUHP
+3. Add to Supabase `payers` table
+4. Test with real UUHP patient (will need Member ID)
+5. Document minimum requirements in `PAYER_REQUIREMENTS_AND_ANALYSIS.md`
+
+**Expected Challenges**:
+- UUHP likely requires Member ID (like Aetna)
+- May require specific provider credentials
+- Need real UUHP patient to test successfully
+
+#### **Phase 3: Enhanced Payer Management**
+
+**Future Features**:
+- Admin interface to add/edit payers
+- Payer-specific field requirements (SSN, Member ID, Group Number)
+- Per-payer response time tracking
+- Success/failure rate monitoring
+- Automatic payer configuration updates
+
+### **Environment Variables Needed**:
+```bash
+# Add to .env.local
+SUPABASE_URL=your-supabase-project-url
+SUPABASE_ANON_KEY=your-supabase-anon-key
+```
+
+### **Files to Review**:
+- `payers (1).xlsx - Payers.csv` - Complete payer list with Office Ally IDs
+- `universal-eligibility-checker.js` - Current payer configuration (hardcoded)
+- `PAYER_REQUIREMENTS_AND_ANALYSIS.md` - Documented requirements per payer
+
+### **Success Criteria**:
+✅ Payers stored in Supabase database
+✅ UI dynamically loads payer list from database
+✅ UUHP eligibility checking functional
+✅ Member ID field shows/hides based on payer requirements
+✅ Easy to add new payers without code changes
+
+---
+
+## 🎯 RECOVERY DAY DEMO - COMPLETE SYSTEM ORCHESTRATION (ARCHIVED)
 
 ## 🚨 CRITICAL CONTEXT
 You are orchestrating a two-part demo system for Recovery Day:
@@ -111,16 +278,16 @@ module.exports = {
         smsBaseUrl: 'http://localhost:3002'
     },
     production: {
-        cpssUrl: process.env.CPSS_URL || 'https://moonlit-cm.vercel.app',
-        patientUrl: process.env.PATIENT_URL || 'https://moonlit-patient.vercel.app',
-        smsBaseUrl: process.env.PATIENT_URL || 'https://moonlit-patient.vercel.app'
+        cpssUrl: process.env.CPSS_URL || 'https://[REDACTED-USERNAME]-cm.vercel.app',
+        patientUrl: process.env.PATIENT_URL || 'https://[REDACTED-USERNAME]-patient.vercel.app',
+        smsBaseUrl: process.env.PATIENT_URL || 'https://[REDACTED-USERNAME]-patient.vercel.app'
     }
 };
 📁 PATIENT APP CONTEXT (../cm-app-v2/reach-2-0)
 Key Files You Need to Know About:
 
 client/index.html - Main patient app (drug tests, points, roulette)
-client/css/styles.css - Styling (needs moonlit branding)
+client/css/styles.css - Styling (needs [REDACTED-USERNAME] branding)
 services/enrollment-bridge.js - Handles SMS token authentication
 api/patient-app.js - Patient app API endpoints
 
