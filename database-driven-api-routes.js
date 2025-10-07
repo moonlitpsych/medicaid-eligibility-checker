@@ -204,9 +204,22 @@ async function handleDatabaseDrivenEligibilityCheck(req, res) {
         const eligibilityResult = await parseDatabaseDrivenX12_271(x12_271, payerId, payerConfig);
         eligibilityResult.responseTime = Date.now() - startTime;
 
+        // Add cost estimates if patient is enrolled and has financial info
+        if (eligibilityResult.enrolled && eligibilityResult.copayInfo) {
+            const { calculateCommonServices } = require('./lib/patient-cost-estimator');
+            try {
+                eligibilityResult.estimatedCosts = calculateCommonServices(eligibilityResult);
+                console.log('💵 Added cost estimates for common services');
+            } catch (error) {
+                console.error('⚠️  Failed to calculate cost estimates:', error.message);
+                // Don't fail the whole request if cost estimation fails
+                eligibilityResult.estimatedCosts = null;
+            }
+        }
+
         // Log to database with enhanced X12 271 parsing
         const logEntry = await logEligibilityCheck(patientData, payerId, x12_270, x12_271, eligibilityResult, Date.now() - startTime);
-        
+
         // Add extracted data to response if available
         if (eligibilityResult.extractedData) {
             console.log('📋 Auto-population data available:', Object.keys(eligibilityResult.extractedData));
@@ -243,7 +256,7 @@ async function parseDatabaseDrivenX12_271(x12Data, officeAllyPayerId, payerConfi
         x12Details: {
             responseType: '',
             segments: [],
-            rawResponse: x12Data.substring(0, 500) + (x12Data.length > 500 ? '...' : '')
+            rawResponse: x12Data // Include full response for HMHI-BHN detection and other pattern matching
         }
     };
 
@@ -273,9 +286,25 @@ async function parseDatabaseDrivenX12_271(x12Data, officeAllyPayerId, payerConfi
                 result.details = `Active coverage with ${payerConfig.displayName}`;
             }
 
-            // Special handling for tested payers
-            if (officeAllyPayerId === '60054') { // Aetna
-                result.copayInfo = extractAetnaCopayInfo(x12Data);
+            // Extract financial information for ALL payers
+            result.copayInfo = extractFinancialInfo(x12Data);
+
+            // Ensure copayInfo is always populated (even if empty)
+            if (!result.copayInfo || Object.keys(result.copayInfo).length === 0) {
+                result.copayInfo = {
+                    isInNetwork: true, // Default to in-network
+                    networkStatus: 'IN_NETWORK',
+                    deductibleRemaining: null,
+                    deductibleMet: null,
+                    deductibleTotal: null,
+                    oopMaxRemaining: null,
+                    oopMaxMet: null,
+                    oopMaxTotal: null,
+                    primaryCareCopay: null,
+                    specialistCopay: null,
+                    mentalHealthOutpatient: null,
+                    primaryCareCoinsurance: null
+                };
             }
 
         } else {
@@ -352,35 +381,12 @@ function parseMedicaidManagedCareResponse(x12Data, result, payerConfig) {
 }
 
 /**
- * Extract copay information (reuse from existing code)
+ * Extract copay information using comprehensive financial parser
  */
-function extractAetnaCopayInfo(x12Data) {
-    const copayInfo = {};
-    const segments = x12Data.split('~');
-    
-    // Look for EB segments with copay amounts
-    segments.forEach(segment => {
-        if (segment.startsWith('EB*')) {
-            const parts = segment.split('*');
-            // Look for monetary amounts in EB segments
-            for (let i = 0; i < parts.length; i++) {
-                if (parts[i] && /^\d+\.\d{2}$/.test(parts[i])) {
-                    const amount = parseFloat(parts[i]);
-                    
-                    // Assign copays based on position and context
-                    if (!copayInfo.officeCopay && amount > 0 && amount < 100) {
-                        copayInfo.officeCopay = amount;
-                    } else if (!copayInfo.specialistCopay && amount > copayInfo.officeCopay) {
-                        copayInfo.specialistCopay = amount;
-                    } else if (!copayInfo.emergencyCopay && amount > 100) {
-                        copayInfo.emergencyCopay = amount;
-                    }
-                }
-            }
-        }
-    });
-    
-    return Object.keys(copayInfo).length > 0 ? copayInfo : null;
+function extractFinancialInfo(x12Data) {
+    // Use the comprehensive financial parser
+    const { extractFinancialBenefits } = require('./lib/x12-271-financial-parser');
+    return extractFinancialBenefits(x12Data);
 }
 
 /**
