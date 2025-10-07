@@ -1019,7 +1019,7 @@ async function startServer() {
         console.log('⚠️ CM database initialization skipped (module not available)');
     }
     
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
         console.log(`
 🎉 OFFICE ALLY + CM API SERVER READY!
 ====================================
