@@ -56,9 +56,18 @@ function generateUniversalX12_270(patient, payerId) {
     
     const now = new Date();
     const ctrl = Date.now().toString().slice(-9);
-    const yymmdd = now.toISOString().slice(2,10).replace(/-/g,'');
-    const hhmm = now.toISOString().slice(11,16).replace(':','');
-    const ccyymmdd = now.toISOString().slice(0,10).replace(/-/g,'');
+
+    // Use LOCAL time for dates (not UTC) to avoid "future date" errors
+    // When it's Oct 7 @ 6pm Mountain Time, UTC shows Oct 8 which payers reject
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+
+    const yymmdd = `${String(year).slice(2)}${month}${day}`;
+    const hhmm = `${hours}${minutes}`;
+    const ccyymmdd = `${year}${month}${day}`;
     const dob = (patient.dateOfBirth || '').replace(/-/g,'');
 
     // Pad ISA fields to 15 characters

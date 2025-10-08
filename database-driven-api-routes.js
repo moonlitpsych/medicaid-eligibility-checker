@@ -267,10 +267,28 @@ async function parseDatabaseDrivenX12_271(x12Data, officeAllyPayerId, payerConfi
 
         const segments = x12Data.split('~').filter(seg => seg.trim());
 
+        // Check for AAA rejection FIRST (before checking EB segments)
+        const aaaSegments = segments.filter(seg => seg.startsWith('AAA*'));
+        const hasRejection = aaaSegments.some(seg => seg.includes('AAA*N'));
+
+        // Get error message if present
+        const msgSegments = segments.filter(seg => seg.startsWith('MSG*'));
+        const errorMessage = msgSegments.length > 0
+            ? msgSegments.map(seg => seg.split('*')[1]).join('; ')
+            : null;
+
         // Parse eligibility benefits (EB segments)
         const ebSegments = segments.filter(seg => seg.startsWith('EB*'));
 
-        if (ebSegments.length > 0) {
+        // Check for valid EB segments (not EB*V which means "Not Applicable")
+        const validEbSegments = ebSegments.filter(seg => !seg.startsWith('EB*V'));
+
+        if (hasRejection || validEbSegments.length === 0) {
+            // Request was rejected or no valid coverage
+            result.enrolled = false;
+            result.error = errorMessage || `No active coverage found with ${payerConfig.displayName}`;
+            console.log(`❌ Eligibility check rejected: ${result.error}`);
+        } else if (validEbSegments.length > 0) {
             result.enrolled = true;
 
             // Database-driven payer-specific parsing
@@ -306,14 +324,6 @@ async function parseDatabaseDrivenX12_271(x12Data, officeAllyPayerId, payerConfi
                     primaryCareCoinsurance: null
                 };
             }
-
-        } else {
-            // Check for AAA rejection segments
-            const aaaSegments = segments.filter(seg => seg.startsWith('AAA*'));
-            result.enrolled = false;
-            result.error = aaaSegments.length > 0 ?
-                `No active coverage found with ${payerConfig.displayName}` :
-                'Unable to determine eligibility status';
         }
     } else if (x12Data.includes('999') || x12Data.includes('ST*999*')) {
         result.x12Details.responseType = '999';
