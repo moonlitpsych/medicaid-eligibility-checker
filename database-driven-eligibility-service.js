@@ -425,8 +425,10 @@ async function generateDatabaseDrivenX12_270(patientData, officeAllyPayerId) {
         seg.push(`DTP*291*D8*${ccyymmdd}`);
     }
     
-    // EQ - Eligibility or Benefit Inquiry
-    seg.push(`EQ*30`); // 30 = Health Benefit Plan Coverage
+    // EQ - Eligibility or Benefit Inquiry (Request multiple service types for detailed copay info)
+    seg.push(`EQ*30`); // 30 = Health Benefit Plan Coverage (general)
+    seg.push(`EQ*98`); // 98 = Professional (Physician) Visit - Office (gets PCP/specialist copays)
+    seg.push(`EQ*A8`); // A8 = Psychiatric - Outpatient (mental health specific)
 
     // SE - Transaction Set Trailer
     const stIndex = seg.findIndex(s => s.startsWith('ST*'));

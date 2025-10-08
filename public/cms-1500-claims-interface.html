@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMS-1500 Claims Submission | Moonlit Healthcare</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .moonlit-gradient { background: linear-gradient(135deg, #BF9C73 0%, #8B7355 100%); }
+
+        /* CMS-1500 Form Styling */
+        .cms-section {
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            background: white;
+        }
+
+        .cms-box-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #4b5563;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+
+        .service-line-row {
+            display: grid;
+            grid-template-columns: 120px 80px 100px 100px 60px 100px 60px 60px;
+            gap: 0.5rem;
+            align-items: end;
+            margin-bottom: 0.5rem;
+            padding: 0.75rem;
+            background: #f9fafb;
+            border-radius: 0.5rem;
+        }
+
+        .test-mode-badge {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .7; }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-stone-50 via-orange-50/30 to-stone-100">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="flex space-x-1">
+                        <div class="w-2 h-2 bg-orange-400 rounded-full"></div>
+                        <div class="w-2 h-2 bg-orange-300 rounded-full"></div>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-semibold text-gray-900">moonlit</h1>
+                        <p class="text-xs text-gray-500 uppercase tracking-wide">CMS-1500 CLAIMS SUBMISSION</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <!-- Test Mode Toggle -->
+                    <div class="flex items-center space-x-2 px-4 py-2 bg-gray-50 rounded-lg border border-gray-200">
+                        <span class="text-sm font-medium text-gray-700">Test Mode:</span>
+                        <label class="relative inline-block w-12 h-6">
+                            <input type="checkbox" id="testModeToggle" checked class="sr-only peer">
+                            <div class="w-12 h-6 bg-gray-300 rounded-full peer peer-checked:bg-yellow-500 transition-colors"></div>
+                            <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-6"></div>
+                        </label>
+                        <span id="testModeLabel" class="text-xs font-bold text-yellow-600 test-mode-badge">OATEST</span>
+                    </div>
+                    <div class="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                        ✓ Office Ally SFTP
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-6 py-8">
+        <!-- Instructions -->
+        <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-8">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-blue-700">
+                        <strong>Professional Claims (837P) Submission:</strong> Submit claims directly to Office Ally via SFTP.
+                        <span id="testModeInstructions" class="font-bold">TEST MODE is enabled - claims will include OATEST prefix.</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Patient Search Section -->
+        <div class="cms-section">
+            <h3 class="text-lg font-bold text-slate-800 mb-4">🔍 Search IntakeQ Patients</h3>
+            <div class="relative">
+                <input
+                    id="patientSearch"
+                    type="text"
+                    placeholder="Type patient name to search and auto-fill..."
+                    class="w-full bg-stone-50 border-2 border-stone-200 rounded-xl py-3 px-4 pr-10 text-slate-800 focus:outline-none focus:border-orange-300 focus:bg-white transition-all duration-200"
+                    autocomplete="off"
+                />
+                <svg class="absolute right-3 top-4 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+            <div id="patientResults" class="mt-3 max-h-64 overflow-y-auto"></div>
+        </div>
+
+        <!-- CMS-1500 Form -->
+        <form id="claimForm">
+            <!-- Box 1-13: Patient & Insurance Information -->
+            <div class="cms-section">
+                <h3 class="text-lg font-bold text-slate-800 mb-4">📋 Patient & Insurance Information (Box 1-13)</h3>
+
+                <div class="grid grid-cols-2 gap-6">
+                    <!-- Left Column: Patient Info -->
+                    <div>
+                        <p class="cms-box-label mb-2">Patient Information (Box 2-7)</p>
+
+                        <div class="grid grid-cols-3 gap-3 mb-3">
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">First Name *</label>
+                                <input type="text" id="patientFirstName" required
+                                    class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-orange-400" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">Last Name *</label>
+                                <input type="text" id="patientLastName" required
+                                    class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-orange-400" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">Middle Initial</label>
+                                <input type="text" id="patientMiddle" maxlength="1"
+                                    class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-orange-400" />
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">Date of Birth * (Box 3)</label>
+                                <input type="date" id="patientDOB" required
+                                    class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-orange-400" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">Gender * (Box 3)</label>
+                                <select id="patientGender" required
+                                    class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-orange-400">
+                                    <option value="">Select...</option>
+                                    <option value="M">Male</option>
+                                    <option value="F">Female</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="block text-xs text-gray-600 mb-1">Address (Box 5)</label>
+                            <input type="text" id="patientAddress"
+                                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-orange-400" />
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-3 mb-3">
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">City</label>
+                                <input type="text" id="patientCity"
+                                    class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-orange-400" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">State</label>
+                                <input type="text" id="patientState" maxlength="2" value="UT"
+                                    class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-orange-400" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">ZIP Code</label>
+                                <input type="text" id="patientZip" maxlength="10"
+                                    class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-orange-400" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Phone Number (Box 7)</label>
+                            <input type="tel" id="patientPhone"
+                                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-orange-400" />
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Insurance Info -->
+                    <div>
+                        <p class="cms-box-label mb-2">Insurance Information (Box 1, 9-11)</p>
+
+                        <div class="mb-3">
+                            <label class="block text-xs text-gray-600 mb-1">Select Payer * (Box 1)</label>
+                            <select id="payerSelect" required
+                                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-orange-400">
+                                <option value="">Loading payers...</option>
+                            </select>
+                            <p id="payerIdDisplay" class="text-xs text-gray-500 mt-1"></p>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="block text-xs text-gray-600 mb-1">Member ID (Box 1a)</label>
+                            <input type="text" id="memberID"
+                                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-orange-400" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="block text-xs text-gray-600 mb-1">Group Number (if applicable)</label>
+                            <input type="text" id="groupNumber"
+                                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-orange-400" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="block text-xs text-gray-600 mb-1">Patient Relationship to Insured (Box 6)</label>
+                            <select id="relationshipToInsured"
+                                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-orange-400">
+                                <option value="18">Self</option>
+                                <option value="01">Spouse</option>
+                                <option value="19">Child</option>
+                                <option value="G8">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="block text-xs text-gray-600 mb-1">Insurance Plan Name (Box 11c)</label>
+                            <input type="text" id="insurancePlanName" placeholder="e.g., Targeted Adult Medicaid"
+                                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-orange-400" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Box 21: Diagnosis Codes -->
+            <div class="cms-section">
+                <h3 class="text-lg font-bold text-slate-800 mb-4">🏥 Diagnosis Codes (Box 21)</h3>
+                <p class="text-sm text-gray-600 mb-4">Enter up to 12 ICD-10 diagnosis codes (A-L). First diagnosis listed is primary.</p>
+
+                <div id="diagnosisList" class="grid grid-cols-3 gap-3 mb-3">
+                    <!-- Diagnosis inputs will be generated by JS -->
+                </div>
+
+                <div class="flex flex-wrap gap-2 mt-3">
+                    <p class="text-xs text-gray-600 mr-2">Common Codes:</p>
+                    <button type="button" onclick="addDiagnosisCode('F329')" class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200">F329 Depression</button>
+                    <button type="button" onclick="addDiagnosisCode('F411')" class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200">F411 Anxiety</button>
+                    <button type="button" onclick="addDiagnosisCode('F319')" class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200">F319 Bipolar</button>
+                    <button type="button" onclick="addDiagnosisCode('F200')" class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200">F200 Schizophrenia</button>
+                </div>
+            </div>
+
+            <!-- Box 24: Service Lines -->
+            <div class="cms-section">
+                <h3 class="text-lg font-bold text-slate-800 mb-4">💊 Service Lines (Box 24A-J)</h3>
+
+                <div id="serviceLinesList" class="mb-4">
+                    <!-- Service line rows will be added by JS -->
+                </div>
+
+                <button type="button" id="addServiceLineBtn" onclick="addServiceLine()"
+                    class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Service Line
+                </button>
+
+                <div class="flex flex-wrap gap-2 mt-4">
+                    <p class="text-xs text-gray-600 mr-2">Common Services:</p>
+                    <button type="button" onclick="addCommonService('90834', 150)" class="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded hover:bg-purple-200">90834 - $150 (45min)</button>
+                    <button type="button" onclick="addCommonService('90837', 200)" class="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded hover:bg-purple-200">90837 - $200 (60min)</button>
+                    <button type="button" onclick="addCommonService('90791', 250)" class="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded hover:bg-purple-200">90791 - $250 (Intake)</button>
+                </div>
+            </div>
+
+            <!-- Box 33: Billing Provider & Rendering Provider -->
+            <div class="cms-section">
+                <h3 class="text-lg font-bold text-slate-800 mb-4">👨‍⚕️ Provider Information (Box 24J, 33)</h3>
+
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <p class="cms-box-label mb-2">Billing Provider (Box 33)</p>
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <p class="text-sm font-medium text-gray-900">Moonlit PLLC</p>
+                            <p class="text-xs text-gray-600">NPI: <span id="billingNPI">Loading...</span></p>
+                            <p class="text-xs text-gray-600">Tax ID: <span id="billingTaxID">Loading...</span></p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <p class="cms-box-label mb-2">Rendering Provider (Box 24J)</p>
+                        <div class="mb-2">
+                            <label class="block text-xs text-gray-600 mb-1">Select Provider</label>
+                            <select id="renderingProviderSelect"
+                                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-orange-400">
+                                <option value="1275348807">Travis Norseth (Attending - 1275348807)</option>
+                                <option value="custom">Custom NPI...</option>
+                            </select>
+                        </div>
+                        <div id="customNPIContainer" class="hidden">
+                            <label class="block text-xs text-gray-600 mb-1">Custom NPI</label>
+                            <input type="text" id="customRenderingNPI" maxlength="10"
+                                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-orange-400" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Section -->
+            <div class="flex items-center justify-between bg-white p-6 rounded-2xl shadow-xl">
+                <div>
+                    <p class="text-sm text-gray-600">
+                        Total Charge: <span id="totalCharge" class="text-lg font-bold text-gray-900">$0.00</span>
+                    </p>
+                    <p class="text-xs text-gray-500">
+                        Service Lines: <span id="totalLines">0</span>
+                    </p>
+                </div>
+
+                <div class="flex gap-3">
+                    <button type="button" onclick="previewClaim()"
+                        class="px-6 py-3 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors">
+                        Preview 837P
+                    </button>
+                    <button type="submit" id="submitBtn"
+                        class="px-6 py-3 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 transition-colors flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        <span id="submitBtnText">Submit TEST Claim</span>
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="mt-8 hidden"></div>
+    </div>
+
+    <script>
+        // Global state
+        let allPatients = [];
+        let allPayers = [];
+        let diagnosisCount = 4; // Start with 4 diagnosis fields
+        let serviceLineCount = 0;
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadPayers();
+            await loadPatients();
+            await loadBillingProvider();
+            await loadRenderingProviders();
+            initializeDiagnosisFields();
+            initializeTestModeToggle();
+            initializeRenderingProviderToggle();
+            addServiceLine(); // Add first service line by default
+            updateTotalCharge();
+        });
+
+        // Test Mode Toggle
+        function initializeTestModeToggle() {
+            const toggle = document.getElementById('testModeToggle');
+            const label = document.getElementById('testModeLabel');
+            const instructions = document.getElementById('testModeInstructions');
+            const submitBtn = document.getElementById('submitBtnText');
+
+            toggle.addEventListener('change', (e) => {
+                const isTest = e.target.checked;
+                label.textContent = isTest ? 'OATEST' : 'PRODUCTION';
+                label.className = isTest ? 'text-xs font-bold text-yellow-600 test-mode-badge' : 'text-xs font-bold text-red-600';
+                instructions.textContent = isTest
+                    ? 'TEST MODE is enabled - claims will include OATEST prefix.'
+                    : 'PRODUCTION MODE - claims will be submitted for REAL processing!';
+                submitBtn.textContent = isTest ? 'Submit TEST Claim' : 'Submit PRODUCTION Claim';
+            });
+        }
+
+        // Rendering Provider Toggle
+        function initializeRenderingProviderToggle() {
+            const select = document.getElementById('renderingProviderSelect');
+            const customContainer = document.getElementById('customNPIContainer');
+
+            select.addEventListener('change', (e) => {
+                customContainer.classList.toggle('hidden', e.target.value !== 'custom');
+            });
+        }
+
+        // Load Payers
+        async function loadPayers() {
+            try {
+                const response = await fetch('/api/payers/list');
+                const data = await response.json();
+                allPayers = data.payers || [];
+
+                const select = document.getElementById('payerSelect');
+                select.innerHTML = '<option value="">Select a payer...</option>';
+
+                allPayers.forEach(payer => {
+                    const option = document.createElement('option');
+                    option.value = payer.id; // UUID from database
+                    option.textContent = payer.name;
+                    option.dataset.payerId = payer.oa_professional_837p_id; // 837P ID
+                    option.dataset.category = payer.category;
+                    select.appendChild(option);
+                });
+
+                select.addEventListener('change', (e) => {
+                    const selected = e.target.selectedOptions[0];
+                    const payerId = selected?.dataset.payerId;
+                    const display = document.getElementById('payerIdDisplay');
+                    display.textContent = payerId ? `Office Ally Claims ID: ${payerId}` : '';
+                    display.className = payerId ? 'text-xs text-green-600 mt-1 font-medium' : 'text-xs text-red-600 mt-1';
+                    if (!payerId) display.textContent = '⚠️ No 837P ID configured for this payer';
+                });
+            } catch (error) {
+                console.error('Error loading payers:', error);
+            }
+        }
+
+        // Load Patients from IntakeQ
+        async function loadPatients() {
+            try {
+                const response = await fetch('/api/intakeq/clients/list');
+                const data = await response.json();
+                allPatients = data.clients || [];
+            } catch (error) {
+                console.error('Error loading patients:', error);
+            }
+        }
+
+        // Load Billing Provider (Moonlit PLLC)
+        async function loadBillingProvider() {
+            try {
+                const response = await fetch('/api/providers/billing');
+                const data = await response.json();
+
+                if (data.success && data.provider) {
+                    const p = data.provider;
+                    document.getElementById('billingNPI').textContent = p.npi;
+                    document.getElementById('billingTaxID').textContent = p.taxId;
+                }
+            } catch (error) {
+                console.error('Error loading billing provider:', error);
+                document.getElementById('billingNPI').textContent = 'Error loading';
+                document.getElementById('billingTaxID').textContent = 'Error loading';
+            }
+        }
+
+        // Load Rendering Providers
+        async function loadRenderingProviders() {
+            try {
+                const response = await fetch('/api/providers/active');
+                const data = await response.json();
+
+                if (data.success && data.providers) {
+                    const select = document.getElementById('renderingProviderSelect');
+                    select.innerHTML = '<option value="">Select provider...</option>';
+
+                    data.providers.forEach(p => {
+                        const option = document.createElement('option');
+                        option.value = p.npi;
+                        option.textContent = `${p.name} (${p.type || 'Provider'} - ${p.npi})`;
+                        select.appendChild(option);
+                    });
+
+                    // Add custom option at the end
+                    const customOption = document.createElement('option');
+                    customOption.value = 'custom';
+                    customOption.textContent = 'Custom NPI...';
+                    select.appendChild(customOption);
+                }
+            } catch (error) {
+                console.error('Error loading rendering providers:', error);
+            }
+        }
+
+        // Patient Search
+        document.getElementById('patientSearch').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const resultsDiv = document.getElementById('patientResults');
+
+            if (query.length < 2) {
+                resultsDiv.innerHTML = '';
+                return;
+            }
+
+            const matches = allPatients.filter(p =>
+                `${p.first_name} ${p.last_name}`.toLowerCase().includes(query)
+            ).slice(0, 10);
+
+            if (matches.length === 0) {
+                resultsDiv.innerHTML = '<p class="text-sm text-gray-500 p-2">No patients found</p>';
+                return;
+            }
+
+            resultsDiv.innerHTML = matches.map(patient => `
+                <div class="p-3 hover:bg-orange-50 cursor-pointer rounded-lg border border-gray-100 mb-2 transition-colors"
+                    onclick='selectPatient(${JSON.stringify(patient)})'>
+                    <p class="font-semibold text-gray-900">${patient.first_name} ${patient.last_name}</p>
+                    <p class="text-xs text-gray-600">DOB: ${patient.date_of_birth} | Member ID: ${patient.primary_insurance_policy_number || 'N/A'}</p>
+                    <p class="text-xs text-gray-500">${patient.primary_insurance_name || 'No insurance on file'}</p>
+                </div>
+            `).join('');
+        });
+
+        // Select Patient
+        function selectPatient(patient) {
+            document.getElementById('patientFirstName').value = patient.first_name || '';
+            document.getElementById('patientLastName').value = patient.last_name || '';
+            document.getElementById('patientDOB').value = patient.date_of_birth || '';
+            document.getElementById('patientAddress').value = patient.address_street || '';
+            document.getElementById('patientCity').value = patient.address_city || '';
+            document.getElementById('patientState').value = patient.address_state || 'UT';
+            document.getElementById('patientZip').value = patient.address_zip || '';
+            document.getElementById('patientPhone').value = patient.phone || '';
+            document.getElementById('memberID').value = patient.primary_insurance_policy_number || '';
+
+            // Parse gender from raw data
+            const gender = patient.raw_data?.Gender === 'Male' ? 'M' : patient.raw_data?.Gender === 'Female' ? 'F' : '';
+            document.getElementById('patientGender').value = gender;
+
+            // Clear search
+            document.getElementById('patientSearch').value = '';
+            document.getElementById('patientResults').innerHTML = '';
+        }
+
+        // Initialize Diagnosis Fields
+        function initializeDiagnosisFields() {
+            const container = document.getElementById('diagnosisList');
+            const labels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+
+            for (let i = 0; i < diagnosisCount; i++) {
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <label class="block text-xs text-gray-600 mb-1">Diagnosis ${labels[i]}</label>
+                    <input type="text" id="diagnosis${i}" maxlength="7" placeholder="e.g., F329"
+                        class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-orange-400" />
+                `;
+                container.appendChild(div);
+            }
+        }
+
+        // Add Diagnosis Code (from quick buttons)
+        function addDiagnosisCode(code) {
+            for (let i = 0; i < diagnosisCount; i++) {
+                const input = document.getElementById(`diagnosis${i}`);
+                if (!input.value) {
+                    input.value = code;
+                    break;
+                }
+            }
+        }
+
+        // Add Service Line
+        function addServiceLine(cptCode = '', charge = 0) {
+            serviceLineCount++;
+            const container = document.getElementById('serviceLinesList');
+            const today = new Date().toISOString().split('T')[0];
+
+            const div = document.createElement('div');
+            div.className = 'service-line-row';
+            div.id = `serviceLine${serviceLineCount}`;
+            div.innerHTML = `
+                <div>
+                    <label class="block text-xs text-gray-600 mb-1">Date of Service</label>
+                    <input type="date" class="serviceDate w-full border border-gray-300 rounded px-2 py-1 text-sm" value="${today}" required />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-600 mb-1">Place</label>
+                    <select class="placeOfService w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                        <option value="11">Office</option>
+                        <option value="02">Telehealth</option>
+                        <option value="12">Home</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-600 mb-1">CPT Code *</label>
+                    <input type="text" class="cptCode w-full border border-gray-300 rounded px-2 py-1 text-sm" value="${cptCode}" required />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-600 mb-1">Modifiers</label>
+                    <input type="text" class="modifiers w-full border border-gray-300 rounded px-2 py-1 text-sm" placeholder="95, 93" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-600 mb-1">Dx Ptr</label>
+                    <input type="text" class="diagnosisPointer w-full border border-gray-300 rounded px-2 py-1 text-sm" value="1" />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-600 mb-1">Charge *</label>
+                    <input type="number" step="0.01" class="charge w-full border border-gray-300 rounded px-2 py-1 text-sm" value="${charge}" required />
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-600 mb-1">Units</label>
+                    <input type="number" class="units w-full border border-gray-300 rounded px-2 py-1 text-sm" value="1" required />
+                </div>
+                <div class="flex items-end">
+                    <button type="button" onclick="removeServiceLine(${serviceLineCount})"
+                        class="px-3 py-1 bg-red-100 text-red-700 text-xs rounded hover:bg-red-200">
+                        Delete
+                    </button>
+                </div>
+            `;
+            container.appendChild(div);
+
+            // Add event listeners to update total
+            div.querySelectorAll('.charge, .units').forEach(input => {
+                input.addEventListener('input', updateTotalCharge);
+            });
+
+            updateTotalCharge();
+        }
+
+        // Remove Service Line
+        function removeServiceLine(id) {
+            const element = document.getElementById(`serviceLine${id}`);
+            if (element) {
+                element.remove();
+                updateTotalCharge();
+            }
+        }
+
+        // Add Common Service
+        function addCommonService(cptCode, charge) {
+            addServiceLine(cptCode, charge);
+        }
+
+        // Update Total Charge
+        function updateTotalCharge() {
+            const lines = document.querySelectorAll('.service-line-row');
+            let total = 0;
+
+            lines.forEach(line => {
+                const charge = parseFloat(line.querySelector('.charge').value) || 0;
+                const units = parseInt(line.querySelector('.units').value) || 1;
+                total += charge * units;
+            });
+
+            document.getElementById('totalCharge').textContent = `$${total.toFixed(2)}`;
+            document.getElementById('totalLines').textContent = lines.length;
+        }
+
+        // Preview Claim (TODO: Show EDI in modal)
+        function previewClaim() {
+            alert('Preview functionality coming soon! Will show generated 837P EDI transaction.');
+        }
+
+        // Submit Claim Form
+        document.getElementById('claimForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const testMode = document.getElementById('testModeToggle').checked;
+
+            // Production mode confirmation
+            if (!testMode) {
+                if (!confirm('⚠️ PRODUCTION MODE: This claim will be submitted for REAL processing. Are you sure?')) {
+                    return;
+                }
+            }
+
+            // Gather diagnosis codes
+            const diagnosisCodes = [];
+            for (let i = 0; i < diagnosisCount; i++) {
+                const code = document.getElementById(`diagnosis${i}`).value.trim();
+                if (code) diagnosisCodes.push(code);
+            }
+
+            if (diagnosisCodes.length === 0) {
+                alert('Please enter at least one diagnosis code.');
+                return;
+            }
+
+            // Gather service lines
+            const serviceLines = [];
+            document.querySelectorAll('.service-line-row').forEach(row => {
+                serviceLines.push({
+                    serviceDate: row.querySelector('.serviceDate').value,
+                    placeOfService: row.querySelector('.placeOfService').value,
+                    cptCode: row.querySelector('.cptCode').value,
+                    modifiers: row.querySelector('.modifiers').value.split(',').map(m => m.trim()).filter(m => m),
+                    charge: parseFloat(row.querySelector('.charge').value),
+                    units: parseInt(row.querySelector('.units').value),
+                    diagnosisPointer: row.querySelector('.diagnosisPointer').value
+                });
+            });
+
+            if (serviceLines.length === 0) {
+                alert('Please add at least one service line.');
+                return;
+            }
+
+            // Get rendering provider NPI
+            const renderingSelect = document.getElementById('renderingProviderSelect');
+            const renderingNPI = renderingSelect.value === 'custom'
+                ? document.getElementById('customRenderingNPI').value
+                : renderingSelect.value;
+
+            // Build claim data
+            const claimData = {
+                testMode,
+                patient: {
+                    firstName: document.getElementById('patientFirstName').value,
+                    lastName: document.getElementById('patientLastName').value,
+                    middleName: document.getElementById('patientMiddle').value,
+                    dateOfBirth: document.getElementById('patientDOB').value,
+                    gender: document.getElementById('patientGender').value,
+                    memberId: document.getElementById('memberID').value,
+                    address: document.getElementById('patientAddress').value,
+                    city: document.getElementById('patientCity').value,
+                    state: document.getElementById('patientState').value,
+                    zip: document.getElementById('patientZip').value,
+                    phone: document.getElementById('patientPhone').value
+                },
+                payer: {
+                    id: document.getElementById('payerSelect').value,
+                    name: document.getElementById('payerSelect').selectedOptions[0].textContent
+                },
+                diagnosisCodes,
+                serviceLines,
+                renderingProviderNPI: renderingNPI,
+                relationshipToInsured: document.getElementById('relationshipToInsured').value,
+                groupNumber: document.getElementById('groupNumber').value,
+                insurancePlanName: document.getElementById('insurancePlanName').value
+            };
+
+            // Submit claim
+            try {
+                const submitBtn = document.getElementById('submitBtn');
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<svg class="animate-spin h-5 w-5 mr-2 inline" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Submitting...';
+
+                const response = await fetch('/api/claims/submit-837p', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(claimData)
+                });
+
+                const result = await response.json();
+
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg><span id="submitBtnText">${testMode ? 'Submit TEST Claim' : 'Submit PRODUCTION Claim'}</span>`;
+
+                // Show results
+                displayResults(result);
+            } catch (error) {
+                console.error('Submission error:', error);
+                alert('Error submitting claim: ' + error.message);
+            }
+        });
+
+        // Display Results
+        function displayResults(result) {
+            const section = document.getElementById('resultsSection');
+            section.className = 'mt-8';
+
+            if (result.success) {
+                section.innerHTML = `
+                    <div class="bg-green-50 border-l-4 border-green-400 p-6 rounded-lg">
+                        <div class="flex items-center mb-4">
+                            <svg class="h-6 w-6 text-green-400 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <h3 class="text-lg font-bold text-green-900">Claim Submitted Successfully!</h3>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <p class="text-green-700"><strong>Claim ID:</strong> ${result.claimId}</p>
+                                <p class="text-green-700"><strong>Filename:</strong> ${result.filename}</p>
+                                <p class="text-green-700"><strong>Status:</strong> ${result.status}</p>
+                            </div>
+                            <div>
+                                <p class="text-green-700"><strong>File Size:</strong> ${result.fileSize} bytes</p>
+                                <p class="text-green-700"><strong>Remote Path:</strong> ${result.remotePath}</p>
+                            </div>
+                        </div>
+                        <p class="text-sm text-green-800 mt-4">${result.message}</p>
+                        <p class="text-xs text-green-700 mt-2">
+                            ⏳ <strong>Next Steps:</strong> Wait 6-12 hours for Office Ally to process.
+                            Check for 277 status response and 835 ERA.
+                        </p>
+                    </div>
+                `;
+            } else {
+                section.innerHTML = `
+                    <div class="bg-red-50 border-l-4 border-red-400 p-6 rounded-lg">
+                        <div class="flex items-center mb-4">
+                            <svg class="h-6 w-6 text-red-400 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <h3 class="text-lg font-bold text-red-900">Claim Submission Failed</h3>
+                        </div>
+                        <p class="text-sm text-red-800">${result.error || 'Unknown error occurred'}</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

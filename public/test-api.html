@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Connection Test</title>
+</head>
+<body>
+    <h1>API Connection Test</h1>
+    <button onclick="testAPI()">Test API Connection</button>
+    <pre id="result"></pre>
+
+    <script>
+        async function testAPI() {
+            const resultEl = document.getElementById('result');
+            resultEl.textContent = 'Testing...';
+
+            try {
+                const response = await fetch('/api/database-eligibility/check', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        firstName: 'Hayden',
+                        lastName: 'Cook',
+                        dateOfBirth: '1992-10-23',
+                        payerId: 'UNIV-UTHP'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                resultEl.textContent = '✅ API Connection Successful!\n\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultEl.textContent = '❌ Connection Failed:\n' + error.message + '\n\nStack: ' + error.stack;
+            }
+        }
+    </script>
+</body>
+</html>

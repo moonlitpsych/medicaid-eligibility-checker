@@ -1,0 +1,771 @@
+{
+  "matches": [
+    {
+      "dbPayer": {
+        "id": "d5bf8ae0-9670-49b8-8a3a-b66b82aa1ba2",
+        "name": "Aetna",
+        "payer_type": "Private",
+        "state": "UT",
+        "effective_date": "2025-07-07",
+        "requires_attending": false,
+        "created_at": "2025-06-18T22:13:20.924548",
+        "projected_effective_date": null,
+        "requires_individual_contract": false,
+        "allows_supervised": true,
+        "supervision_level": "sign_off_only",
+        "status_code": "approved",
+        "updated_at": "2025-09-03T22:54:05.189048+00:00"
+      },
+      "matches": {
+        "eligibility": {
+          "name": "Aetna Healthcare",
+          "ids": {
+            "oa_professional_837p_id": "60054",
+            "oa_remit_835_id": "60054",
+            "oa_eligibility_270_id": "60054"
+          },
+          "score": 100
+        },
+        "claims": {
+          "name": "Aetna Healthcare",
+          "ids": {
+            "oa_professional_837p_id": "60054",
+            "oa_remit_835_id": "60054",
+            "oa_eligibility_270_id": "60054"
+          },
+          "score": 100
+        }
+      },
+      "isManualOverride": true
+    },
+    {
+      "dbPayer": {
+        "id": "eced7138-f82d-4f76-82aa-24ee8c515a97",
+        "name": "Cigna",
+        "payer_type": "Private",
+        "state": "UT",
+        "effective_date": null,
+        "requires_attending": true,
+        "created_at": "2025-06-18T22:13:20.924548",
+        "projected_effective_date": null,
+        "requires_individual_contract": false,
+        "allows_supervised": true,
+        "supervision_level": null,
+        "status_code": "not_started",
+        "updated_at": "2025-09-04T02:40:27.422644+00:00"
+      },
+      "matches": {
+        "eligibility": {
+          "name": "CIGNA",
+          "ids": {
+            "oa_professional_837p_id": "62308",
+            "oa_remit_835_id": "62308"
+          },
+          "score": 100
+        },
+        "claims": {
+          "name": "CIGNA",
+          "ids": {
+            "oa_professional_837p_id": "62308",
+            "oa_remit_835_id": "62308"
+          },
+          "score": 100
+        }
+      },
+      "isManualOverride": false
+    },
+    {
+      "dbPayer": {
+        "id": "29e7aa03-6afc-48b0-8d80-50a596aa3565",
+        "name": "First Health Network",
+        "payer_type": "Private",
+        "state": "UT",
+        "effective_date": "2025-07-01",
+        "requires_attending": false,
+        "created_at": "2025-06-18T22:13:20.924548",
+        "projected_effective_date": null,
+        "requires_individual_contract": false,
+        "allows_supervised": false,
+        "supervision_level": null,
+        "status_code": "approved",
+        "updated_at": "2025-09-03T22:54:05.189048+00:00"
+      },
+      "matches": {
+        "eligibility": {
+          "name": "Benveo - First Health Network",
+          "ids": {
+            "oa_professional_837p_id": "76251"
+          },
+          "score": 90
+        },
+        "claims": {
+          "name": "Benveo - First Health Network",
+          "ids": {
+            "oa_professional_837p_id": "76251"
+          },
+          "score": 90
+        }
+      },
+      "isManualOverride": false
+    },
+    {
+      "dbPayer": {
+        "id": "62ab291d-b68e-4c71-a093-2d6e380764c3",
+        "name": "Health Choice Utah",
+        "payer_type": "Medicaid",
+        "state": "UT",
+        "effective_date": "2025-09-01",
+        "requires_attending": true,
+        "created_at": "2025-06-18T22:13:20.924548",
+        "projected_effective_date": null,
+        "requires_individual_contract": false,
+        "allows_supervised": true,
+        "supervision_level": null,
+        "status_code": "approved",
+        "updated_at": "2025-09-04T02:40:27.422644+00:00"
+      },
+      "matches": {
+        "eligibility": {
+          "name": "Health Choice Utah",
+          "ids": {
+            "oa_eligibility_270_id": "HLTHCHOICE-UT"
+          },
+          "score": 100
+        },
+        "claims": {
+          "name": "Health Choice Utah",
+          "ids": {
+            "oa_eligibility_270_id": "HLTHCHOICE-UT"
+          },
+          "score": 100
+        }
+      },
+      "isManualOverride": false
+    },
+    {
+      "dbPayer": {
+        "id": "d218f12b-f8c4-498e-96c4-a03693c322d2",
+        "name": "HealthyU (UUHP)",
+        "payer_type": "Medicaid",
+        "state": "UT",
+        "effective_date": "2025-09-15",
+        "requires_attending": true,
+        "created_at": "2025-06-18T22:13:20.924548",
+        "projected_effective_date": null,
+        "requires_individual_contract": true,
+        "allows_supervised": true,
+        "supervision_level": "sign_off_only",
+        "status_code": "approved",
+        "updated_at": "2025-09-27T02:50:14.330444+00:00"
+      },
+      "matches": {
+        "eligibility": {
+          "name": "University of Utah Health Plans",
+          "ids": {
+            "oa_professional_837p_id": "SX155",
+            "oa_remit_835_id": "SX155",
+            "oa_eligibility_270_id": "UNIV-UTHP"
+          },
+          "score": 100
+        },
+        "claims": {
+          "name": "University of Utah Health Plans",
+          "ids": {
+            "oa_professional_837p_id": "SX155",
+            "oa_remit_835_id": "SX155",
+            "oa_eligibility_270_id": "UNIV-UTHP"
+          },
+          "score": 100
+        }
+      },
+      "isManualOverride": true
+    },
+    {
+      "dbPayer": {
+        "id": "e66daffe-8444-43e0-908c-c366c5d38ef7",
+        "name": "Idaho Medicaid",
+        "payer_type": "Medicaid",
+        "state": "ID",
+        "effective_date": "2025-05-01",
+        "requires_attending": false,
+        "created_at": "2025-06-18T22:13:20.924548",
+        "projected_effective_date": null,
+        "requires_individual_contract": false,
+        "allows_supervised": false,
+        "supervision_level": null,
+        "status_code": "approved",
+        "updated_at": "2025-09-03T22:54:05.189048+00:00"
+      },
+      "matches": {
+        "eligibility": {
+          "name": "Medicaid Idaho",
+          "ids": {
+            "oa_professional_837p_id": "MCDID",
+            "oa_remit_835_id": "MCDID",
+            "oa_eligibility_270_id": "10363"
+          },
+          "score": 100
+        },
+        "claims": {
+          "name": "Medicaid Idaho",
+          "ids": {
+            "oa_professional_837p_id": "MCDID",
+            "oa_remit_835_id": "MCDID",
+            "oa_eligibility_270_id": "10363"
+          },
+          "score": 100
+        }
+      },
+      "isManualOverride": true
+    },
+    {
+      "dbPayer": {
+        "id": "8b48c3e2-f555-4d67-8122-c086466ba97d",
+        "name": "Molina Utah",
+        "payer_type": "Medicaid",
+        "state": "UT",
+        "effective_date": "2025-08-15",
+        "requires_attending": true,
+        "created_at": "2025-06-18T22:13:20.924548",
+        "projected_effective_date": null,
+        "requires_individual_contract": true,
+        "allows_supervised": true,
+        "supervision_level": null,
+        "status_code": "approved",
+        "updated_at": "2025-09-05T18:28:14.793768+00:00"
+      },
+      "matches": {
+        "eligibility": {
+          "name": "Molina Healthcare of Utah",
+          "ids": {
+            "oa_eligibility_270_id": "MLNUT",
+            "oa_professional_837p_id": "SX109",
+            "oa_remit_835_id": "SX109"
+          },
+          "score": 100
+        },
+        "claims": {
+          "name": "Molina Healthcare of Utah",
+          "ids": {
+            "oa_eligibility_270_id": "MLNUT",
+            "oa_professional_837p_id": "SX109",
+            "oa_remit_835_id": "SX109"
+          },
+          "score": 100
+        }
+      },
+      "isManualOverride": true
+    },
+    {
+      "dbPayer": {
+        "id": "1f9c18ec-f4af-4343-9c1f-515abda9c442",
+        "name": "MotivHealth",
+        "payer_type": "Private",
+        "state": "UT",
+        "effective_date": "2025-08-15",
+        "requires_attending": false,
+        "created_at": "2025-06-18T22:13:20.924548",
+        "projected_effective_date": "2025-08-15",
+        "requires_individual_contract": false,
+        "allows_supervised": false,
+        "supervision_level": null,
+        "status_code": "approved",
+        "updated_at": "2025-09-03T22:54:05.189048+00:00"
+      },
+      "matches": {
+        "eligibility": {
+          "name": "MotivHealth Insurance Company",
+          "ids": {
+            "oa_professional_837p_id": "U7632",
+            "oa_remit_835_id": "U7632"
+          },
+          "score": 90
+        },
+        "claims": {
+          "name": "MotivHealth Insurance Company",
+          "ids": {
+            "oa_professional_837p_id": "U7632",
+            "oa_remit_835_id": "U7632"
+          },
+          "score": 90
+        }
+      },
+      "isManualOverride": false
+    },
+    {
+      "dbPayer": {
+        "id": "c9a7e516-4498-4e21-8f7c-b359653d2d69",
+        "name": "Optum Commercial Behavioral Health",
+        "payer_type": "Private",
+        "state": "UT",
+        "effective_date": "2025-08-08",
+        "requires_attending": true,
+        "created_at": "2025-06-18T22:13:20.924548",
+        "projected_effective_date": null,
+        "requires_individual_contract": false,
+        "allows_supervised": true,
+        "supervision_level": "sign_off_only",
+        "status_code": "approved",
+        "updated_at": "2025-09-21T02:30:10.330093+00:00"
+      },
+      "matches": {
+        "eligibility": {
+          "name": "Optum United Health Behavioral Solutions",
+          "ids": {
+            "oa_eligibility_270_id": "OPTUM-UNITED-BH"
+          },
+          "score": 100
+        },
+        "claims": {
+          "name": "Optum United Health Behavioral Solutions",
+          "ids": {
+            "oa_eligibility_270_id": "OPTUM-UNITED-BH"
+          },
+          "score": 100
+        }
+      },
+      "isManualOverride": true
+    },
+    {
+      "dbPayer": {
+        "id": "67352284-5037-4514-8663-99859ff8b06b",
+        "name": "Optum Salt Lake and Tooele County Medicaid Network ",
+        "payer_type": "Medicaid",
+        "state": "UT",
+        "effective_date": null,
+        "requires_attending": true,
+        "created_at": "2025-06-18T22:13:20.924548",
+        "projected_effective_date": "2025-09-01",
+        "requires_individual_contract": false,
+        "allows_supervised": true,
+        "supervision_level": null,
+        "status_code": "waiting_on_them",
+        "updated_at": "2025-09-04T02:40:27.422644+00:00"
+      },
+      "matches": {
+        "eligibility": {
+          "name": "Optum / Salt Lake County (Medicaid)",
+          "ids": {
+            "oa_remit_835_id": "U6885",
+            "oa_professional_837p_id": "U6885"
+          },
+          "score": 100
+        },
+        "claims": {
+          "name": "Optum / Salt Lake County (Medicaid)",
+          "ids": {
+            "oa_remit_835_id": "U6885",
+            "oa_professional_837p_id": "U6885"
+          },
+          "score": 100
+        }
+      },
+      "isManualOverride": true
+    },
+    {
+      "dbPayer": {
+        "id": "b9e556b7-1070-47b8-8467-ef1ee5c68e4e",
+        "name": "Regence BlueCross BlueShield",
+        "payer_type": "Private",
+        "state": "UT",
+        "effective_date": null,
+        "requires_attending": true,
+        "created_at": "2025-06-18T22:13:20.924548",
+        "projected_effective_date": null,
+        "requires_individual_contract": false,
+        "allows_supervised": true,
+        "supervision_level": null,
+        "status_code": "waiting_on_them",
+        "updated_at": "2025-09-04T02:40:27.422644+00:00"
+      },
+      "matches": {
+        "eligibility": {
+          "name": "BCBS Utah (Regence)",
+          "ids": {
+            "oa_eligibility_270_id": "00910",
+            "oa_professional_837p_id": "00910",
+            "oa_remit_835_id": "00910"
+          },
+          "score": 100
+        },
+        "claims": {
+          "name": "BCBS Utah (Regence)",
+          "ids": {
+            "oa_eligibility_270_id": "00910",
+            "oa_professional_837p_id": "00910",
+            "oa_remit_835_id": "00910"
+          },
+          "score": 100
+        }
+      },
+      "isManualOverride": true
+    },
+    {
+      "dbPayer": {
+        "id": "d37d3938-b48d-4bdf-b500-bf5413157ef4",
+        "name": "SelectHealth Integrated",
+        "payer_type": "Medicaid",
+        "state": "UT",
+        "effective_date": null,
+        "requires_attending": false,
+        "created_at": "2025-06-18T22:13:20.924548",
+        "projected_effective_date": null,
+        "requires_individual_contract": false,
+        "allows_supervised": false,
+        "supervision_level": null,
+        "status_code": "waiting_on_them",
+        "updated_at": "2025-09-03T22:54:05.189048+00:00"
+      },
+      "matches": {
+        "eligibility": {
+          "name": "Select Health of Utah",
+          "ids": {
+            "oa_eligibility_270_id": "13161",
+            "oa_professional_837p_id": "SX107",
+            "oa_remit_835_id": "SX107"
+          },
+          "score": 100
+        },
+        "claims": {
+          "name": "Select Health of Utah",
+          "ids": {
+            "oa_eligibility_270_id": "13161",
+            "oa_professional_837p_id": "SX107",
+            "oa_remit_835_id": "SX107"
+          },
+          "score": 100
+        }
+      },
+      "isManualOverride": true
+    },
+    {
+      "dbPayer": {
+        "id": "ea192438-3244-42e5-b0de-680588bb5aba",
+        "name": "Signature",
+        "payer_type": "Private",
+        "state": "UT",
+        "effective_date": null,
+        "requires_attending": false,
+        "created_at": "2025-06-18T22:13:20.924548",
+        "projected_effective_date": null,
+        "requires_individual_contract": false,
+        "allows_supervised": false,
+        "supervision_level": null,
+        "status_code": "not_started",
+        "updated_at": "2025-09-03T22:54:05.189048+00:00"
+      },
+      "matches": {
+        "eligibility": {
+          "name": "Aetna Signature Administrators (ASA)",
+          "ids": {
+            "oa_remit_835_id": "60054",
+            "oa_professional_837p_id": "60054"
+          },
+          "score": 90
+        },
+        "claims": {
+          "name": "Aetna Signature Administrators (ASA)",
+          "ids": {
+            "oa_remit_835_id": "60054",
+            "oa_professional_837p_id": "60054"
+          },
+          "score": 90
+        }
+      },
+      "isManualOverride": false
+    },
+    {
+      "dbPayer": {
+        "id": "0ff47595-9927-44f6-9d18-d2e779c802a7",
+        "name": "TriCare West",
+        "payer_type": "Private",
+        "state": "UT",
+        "effective_date": null,
+        "requires_attending": true,
+        "created_at": "2025-06-18T22:13:20.924548",
+        "projected_effective_date": null,
+        "requires_individual_contract": false,
+        "allows_supervised": true,
+        "supervision_level": null,
+        "status_code": "waiting_on_them",
+        "updated_at": "2025-09-04T02:40:27.422644+00:00"
+      },
+      "matches": {
+        "eligibility": {
+          "name": "Tricare West",
+          "ids": {
+            "oa_eligibility_270_id": "10747",
+            "oa_professional_837p_id": "99726",
+            "oa_remit_835_id": "99726"
+          },
+          "score": 100
+        },
+        "claims": {
+          "name": "Tricare West",
+          "ids": {
+            "oa_eligibility_270_id": "10747",
+            "oa_professional_837p_id": "99726",
+            "oa_remit_835_id": "99726"
+          },
+          "score": 100
+        }
+      },
+      "isManualOverride": false
+    },
+    {
+      "dbPayer": {
+        "id": "08fcf2d8-8f4a-48ed-af1b-f29842b1dbdb",
+        "name": "TriWest",
+        "payer_type": "Private",
+        "state": "UT",
+        "effective_date": null,
+        "requires_attending": true,
+        "created_at": "2025-06-18T22:13:20.924548",
+        "projected_effective_date": null,
+        "requires_individual_contract": false,
+        "allows_supervised": true,
+        "supervision_level": null,
+        "status_code": "waiting_on_them",
+        "updated_at": "2025-09-15T22:39:51.307675+00:00"
+      },
+      "matches": {
+        "eligibility": {
+          "name": "PGBA TriWest VA CCN",
+          "ids": {
+            "oa_professional_837p_id": "VAC45",
+            "oa_remit_835_id": "VAC45"
+          },
+          "score": 90
+        },
+        "claims": {
+          "name": "PGBA TriWest VA CCN",
+          "ids": {
+            "oa_professional_837p_id": "VAC45",
+            "oa_remit_835_id": "VAC45"
+          },
+          "score": 90
+        }
+      },
+      "isManualOverride": false
+    },
+    {
+      "dbPayer": {
+        "id": "e55b07c3-fd8b-4519-a94f-18daed1c90ac",
+        "name": "United Healthcare",
+        "payer_type": "Private",
+        "state": "UT",
+        "effective_date": null,
+        "requires_attending": false,
+        "created_at": "2025-06-18T22:13:20.924548",
+        "projected_effective_date": null,
+        "requires_individual_contract": false,
+        "allows_supervised": false,
+        "supervision_level": null,
+        "status_code": "blocked",
+        "updated_at": "2025-09-03T22:54:05.189048+00:00"
+      },
+      "matches": {
+        "eligibility": {
+          "name": "Hill Physicians United Healthcare PPO",
+          "ids": {
+            "oa_professional_837p_id": "HLPUH",
+            "oa_eligibility_270_id": "UHSS"
+          },
+          "score": 100
+        },
+        "claims": {
+          "name": "Hill Physicians United Healthcare PPO",
+          "ids": {
+            "oa_professional_837p_id": "HLPUH",
+            "oa_eligibility_270_id": "UHSS"
+          },
+          "score": 100
+        }
+      },
+      "isManualOverride": true
+    },
+    {
+      "dbPayer": {
+        "id": "c238fcff-dd31-4be8-a0b2-292c0800d9c4",
+        "name": "University of Utah Health Plans (UUHP)",
+        "payer_type": "Private",
+        "state": "UT",
+        "effective_date": "2025-08-25",
+        "requires_attending": true,
+        "created_at": "2025-06-18T22:13:20.924548",
+        "projected_effective_date": null,
+        "requires_individual_contract": true,
+        "allows_supervised": true,
+        "supervision_level": "sign_off_only",
+        "status_code": "approved",
+        "updated_at": "2025-10-02T13:19:53.281391+00:00"
+      },
+      "matches": {
+        "eligibility": {
+          "name": "University of Utah Health Plans",
+          "ids": {
+            "oa_professional_837p_id": "SX155",
+            "oa_remit_835_id": "SX155",
+            "oa_eligibility_270_id": "UNIV-UTHP"
+          },
+          "score": 100
+        },
+        "claims": {
+          "name": "University of Utah Health Plans",
+          "ids": {
+            "oa_professional_837p_id": "SX155",
+            "oa_remit_835_id": "SX155",
+            "oa_eligibility_270_id": "UNIV-UTHP"
+          },
+          "score": 100
+        }
+      },
+      "isManualOverride": true
+    },
+    {
+      "dbPayer": {
+        "id": "a01d69d6-ae70-4917-afef-49b5ef7e5220",
+        "name": "Utah Medicaid Fee-for-Service",
+        "payer_type": "Medicaid",
+        "state": "UT",
+        "effective_date": "2025-04-07",
+        "requires_attending": false,
+        "created_at": "2025-06-18T22:13:20.924548",
+        "projected_effective_date": null,
+        "requires_individual_contract": false,
+        "allows_supervised": false,
+        "supervision_level": null,
+        "status_code": "approved",
+        "updated_at": "2025-09-03T22:54:05.189048+00:00"
+      },
+      "matches": {
+        "eligibility": {
+          "name": "Medicaid Utah",
+          "ids": {
+            "oa_remit_835_id": "SKUT0",
+            "oa_professional_837p_id": "U4005",
+            "oa_eligibility_270_id": "UTMCD"
+          },
+          "score": 100
+        },
+        "claims": {
+          "name": "Medicaid Utah",
+          "ids": {
+            "oa_remit_835_id": "SKUT0",
+            "oa_professional_837p_id": "U4005",
+            "oa_eligibility_270_id": "UTMCD"
+          },
+          "score": 100
+        }
+      },
+      "isManualOverride": true
+    }
+  ],
+  "noMatches": [
+    {
+      "id": "acce4469-eb7b-41fe-8dac-c95148189006",
+      "name": "Davis Behavioral Health",
+      "payer_type": "Medicaid",
+      "state": "UT",
+      "effective_date": null,
+      "requires_attending": false,
+      "created_at": "2025-06-18T22:13:20.924548",
+      "projected_effective_date": null,
+      "requires_individual_contract": false,
+      "allows_supervised": false,
+      "supervision_level": null,
+      "status_code": "denied",
+      "updated_at": "2025-09-03T22:54:05.189048+00:00"
+    },
+    {
+      "id": "8bd0bedb-226e-4253-bfeb-46ce835ef2a8",
+      "name": "DMBA",
+      "payer_type": "Private",
+      "state": "UT",
+      "effective_date": "2025-06-01",
+      "requires_attending": false,
+      "created_at": "2025-06-18T22:13:20.924548",
+      "projected_effective_date": null,
+      "requires_individual_contract": false,
+      "allows_supervised": false,
+      "supervision_level": null,
+      "status_code": "approved",
+      "updated_at": "2025-09-03T22:54:05.189048+00:00"
+    },
+    {
+      "id": "2db7c014-8674-40bb-b918-88160ffde0a6",
+      "name": "HMHI BHN",
+      "payer_type": "Private",
+      "state": "UT",
+      "effective_date": null,
+      "requires_attending": true,
+      "created_at": "2025-09-15T22:38:30.853317",
+      "projected_effective_date": null,
+      "requires_individual_contract": false,
+      "allows_supervised": true,
+      "supervision_level": "sign_off_only",
+      "status_code": "approved",
+      "updated_at": "2025-10-02T13:19:15.050087+00:00"
+    },
+    {
+      "id": "21d4faf8-4e62-40a7-9b22-b3e930484929",
+      "name": "Molina Idaho",
+      "payer_type": "Private",
+      "state": "ID",
+      "effective_date": null,
+      "requires_attending": false,
+      "created_at": "2025-06-18T22:13:20.924548",
+      "projected_effective_date": null,
+      "requires_individual_contract": false,
+      "allows_supervised": false,
+      "supervision_level": null,
+      "status_code": "withdrawn",
+      "updated_at": "2025-09-03T22:54:05.189048+00:00"
+    },
+    {
+      "id": "dcf21dac-2711-4940-8b44-742045fc7235",
+      "name": "Southwest Behavioral Health",
+      "payer_type": "Medicaid",
+      "state": "UT",
+      "effective_date": null,
+      "requires_attending": false,
+      "created_at": "2025-06-18T22:13:20.924548",
+      "projected_effective_date": null,
+      "requires_individual_contract": false,
+      "allows_supervised": false,
+      "supervision_level": null,
+      "status_code": "denied",
+      "updated_at": "2025-09-03T22:54:05.189048+00:00"
+    },
+    {
+      "id": "ce30f098-9417-4a4d-b44c-a32aaceb030f",
+      "name": "Wasatch Behavioral",
+      "payer_type": "Medicaid",
+      "state": "UT",
+      "effective_date": null,
+      "requires_attending": false,
+      "created_at": "2025-06-18T22:13:20.924548",
+      "projected_effective_date": null,
+      "requires_individual_contract": false,
+      "allows_supervised": false,
+      "supervision_level": null,
+      "status_code": "in_progress",
+      "updated_at": "2025-09-03T22:54:05.189048+00:00"
+    },
+    {
+      "id": "54314e44-f830-4b37-b94f-48726d01394e",
+      "name": "Weber Human Services",
+      "payer_type": "Medicaid",
+      "state": "UT",
+      "effective_date": null,
+      "requires_attending": false,
+      "created_at": "2025-06-18T22:13:20.924548",
+      "projected_effective_date": null,
+      "requires_individual_contract": false,
+      "allows_supervised": false,
+      "supervision_level": null,
+      "status_code": "blocked",
+      "updated_at": "2025-09-03T22:54:05.189048+00:00"
+    }
+  ]
+}
