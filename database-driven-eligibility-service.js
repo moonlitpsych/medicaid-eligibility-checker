@@ -153,6 +153,16 @@ function parseFieldRequirements(config) {
  */
 async function getPreferredProvider(officeAllyPayerId) {
     try {
+        // Helper function to get TIN from providers table
+        async function getTinForNPI(npi) {
+            const { data: providerData } = await supabase
+                .from('providers')
+                .select('tax_id')
+                .eq('npi', npi)
+                .single();
+            return providerData?.tax_id || null;
+        }
+
         // First try to find a provider who has this payer as preferred
         const { data: preferredProvider, error: preferredError } = await supabase
             .from('v_provider_office_ally_configs')
@@ -163,9 +173,11 @@ async function getPreferredProvider(officeAllyPayerId) {
             .single();
 
         if (!preferredError && preferredProvider) {
+            const tin = await getTinForNPI(preferredProvider.provider_npi);
             return {
                 name: preferredProvider.office_ally_provider_name,
-                npi: preferredProvider.provider_npi
+                npi: preferredProvider.provider_npi,
+                tin: tin
             };
         }
 
@@ -179,9 +191,11 @@ async function getPreferredProvider(officeAllyPayerId) {
             .single();
 
         if (!supportError && supportingProvider) {
+            const tin = await getTinForNPI(supportingProvider.provider_npi);
             return {
                 name: supportingProvider.office_ally_provider_name,
-                npi: supportingProvider.provider_npi
+                npi: supportingProvider.provider_npi,
+                tin: tin
             };
         }
 
@@ -195,9 +209,11 @@ async function getPreferredProvider(officeAllyPayerId) {
 
         if (!fallbackError && fallbackProvider) {
             console.warn(`No specific provider found for ${officeAllyPayerId}, using fallback: ${fallbackProvider.office_ally_provider_name}`);
+            const tin = await getTinForNPI(fallbackProvider.provider_npi);
             return {
                 name: fallbackProvider.office_ally_provider_name,
-                npi: fallbackProvider.provider_npi
+                npi: fallbackProvider.provider_npi,
+                tin: tin
             };
         }
 
@@ -205,12 +221,12 @@ async function getPreferredProvider(officeAllyPayerId) {
 
     } catch (error) {
         console.error(`Error finding provider for ${officeAllyPayerId}:`, error);
-        
-        // Hard fallback to known working providers
+
+        // Hard fallback to known working providers with TINs
         if (officeAllyPayerId === '60054') { // Aetna
-            return { name: 'TRAVIS NORSETH', npi: '1124778121' };
+            return { name: 'TRAVIS NORSETH', npi: '1124778121', tin: '332185708' }; // Moonlit's TIN
         }
-        return { name: 'MOONLIT PLLC', npi: '1023711348' }; // Rufus Sweeney
+        return { name: 'MOONLIT PLLC', npi: '1275348807', tin: '332185708' }; // Moonlit's TIN
     }
 }
 
@@ -360,7 +376,14 @@ async function generateDatabaseDrivenX12_270(patientData, officeAllyPayerId) {
 
     const yymmdd = `${String(year).slice(2)}${month}${day}`;
     const hhmm = `${hours}${minutes}`;
-    const ccyymmdd = `${year}${month}${day}`;
+
+    // Use service date if provided (for historical eligibility checks)
+    // Otherwise use today's date
+    let ccyymmdd = `${year}${month}${day}`;
+    if (patientData.serviceDate) {
+        ccyymmdd = patientData.serviceDate.replace(/-/g, '');
+    }
+
     const dob = (patientData.dateOfBirth || '').replace(/-/g,'');
 
     // Pad ISA fields to 15 characters
@@ -388,7 +411,32 @@ async function generateDatabaseDrivenX12_270(patientData, officeAllyPayerId) {
 
     // 2100B: Information Receiver (Provider)
     seg.push(`HL*2*1*21*1`);
-    seg.push(`NM1*1P*2*${providerInfo.name}*****XX*${providerInfo.npi}`);
+
+    // Determine if provider is individual (Type 1) or organization (Type 2)
+    const isOrganization = /\b(PLLC|LLC|PC|INC|CORP|ASSOCIATES|GROUP|CENTER|CLINIC)\b/i.test(providerInfo.name);
+
+    if (isOrganization) {
+        // Type 2: Non-Person Entity (Organization)
+        seg.push(`NM1*1P*2*${providerInfo.name}*****XX*${providerInfo.npi}`);
+    } else {
+        // Type 1: Person (Individual Provider)
+        // Parse name: "ANTHONY_PRIVRATSKY" or "ANTHONY PRIVRATSKY" -> "PRIVRATSKY*ANTHONY"
+        const nameParts = providerInfo.name.replace(/_/g, ' ').trim().split(/\s+/);
+        if (nameParts.length >= 2) {
+            const firstName = nameParts[0];
+            const lastName = nameParts[nameParts.length - 1];
+            seg.push(`NM1*1P*1*${lastName}*${firstName}****XX*${providerInfo.npi}`);
+        } else {
+            // Fallback: use as-is with Type 1
+            seg.push(`NM1*1P*1*${providerInfo.name}*****XX*${providerInfo.npi}`);
+        }
+    }
+
+    // REF - Provider Tax ID (TIN) - Temporarily disabled due to X12 999 rejection
+    // Some clearinghouses don't accept REF*EI in the 2100B loop
+    // if (providerInfo.tin) {
+    //     seg.push(`REF*EI*${providerInfo.tin}`);
+    // }
 
     // 2100C: Subscriber (Patient)
     seg.push(`HL*3*2*22*0`);
@@ -405,24 +453,28 @@ async function generateDatabaseDrivenX12_270(patientData, officeAllyPayerId) {
     }
     
     seg.push(nm1Segment);
-    
-    // DMG - Demographics segment
-    let dmgSegment = `DMG*D8*${dob}`;
-    if (payerConfig.x12Specifics.requiresGenderInDMG && patientData.gender) {
-        const validGender = patientData.gender.toUpperCase();
-        if (['M', 'F'].includes(validGender)) {
-            dmgSegment += `*${validGender}`;
+
+    // DMG - Demographics segment (only include if we have DOB)
+    if (dob) {
+        let dmgSegment = `DMG*D8*${dob}`;
+        if (payerConfig.x12Specifics.requiresGenderInDMG && patientData.gender) {
+            const validGender = patientData.gender.toUpperCase();
+            if (['M', 'F'].includes(validGender)) {
+                dmgSegment += `*${validGender}`;
+            }
         }
+        seg.push(dmgSegment);
     }
-    seg.push(dmgSegment);
-    
-    // DTP - Date segment with payer-specific format
-    if (payerConfig.x12Specifics.dtpFormat === 'RD8') {
-        // Range date format (used by Utah Medicaid)
-        seg.push(`DTP*291*RD8*${ccyymmdd}-${ccyymmdd}`);
-    } else {
-        // Single date format (used by most commercial payers)
-        seg.push(`DTP*291*D8*${ccyymmdd}`);
+
+    // DTP - Date segment (only include if we have DOB)
+    if (dob) {
+        if (payerConfig.x12Specifics.dtpFormat === 'RD8') {
+            // Range date format (used by Utah Medicaid)
+            seg.push(`DTP*291*RD8*${ccyymmdd}-${ccyymmdd}`);
+        } else {
+            // Single date format (used by most commercial payers)
+            seg.push(`DTP*291*D8*${ccyymmdd}`);
+        }
     }
     
     // EQ - Eligibility or Benefit Inquiry (Request multiple service types for detailed copay info)

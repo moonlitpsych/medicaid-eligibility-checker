@@ -133,18 +133,34 @@ async function handleDatabaseDrivenEligibilityCheck(req, res) {
             });
         }
 
-        if (!firstName || !lastName || !dateOfBirth) {
+        // Basic name validation
+        if (!firstName || !lastName) {
             return res.status(400).json({
-                error: 'Missing required fields: firstName, lastName, dateOfBirth',
+                error: 'Missing required fields: firstName, lastName',
+                enrolled: false,
+                verified: false
+            });
+        }
+
+        // For payers that allow name-only queries (like Utah Medicaid with Medicaid ID)
+        // we need EITHER dateOfBirth OR medicaidId/memberNumber
+        const hasDateOfBirth = !!dateOfBirth;
+        const hasMedicaidId = !!medicaidId;
+        const hasMemberNumber = !!memberNumber;
+
+        if (!hasDateOfBirth && !hasMedicaidId && !hasMemberNumber) {
+            return res.status(400).json({
+                error: 'Missing required fields: Must provide either dateOfBirth OR medicaidId/memberNumber',
                 enrolled: false,
                 verified: false
             });
         }
 
         console.log(`🔍 Database-driven eligibility check: ${firstName} ${lastName} with ${payerId}`);
+        console.log(`   Fields provided: DOB=${hasDateOfBirth}, MedicaidID=${hasMedicaidId}, MemberNumber=${hasMemberNumber}`);
 
-        // Check if this is the demo patient
-        if (isDemoPatient(firstName, lastName, dateOfBirth)) {
+        // Check if this is the demo patient (if DOB provided)
+        if (dateOfBirth && isDemoPatient(firstName, lastName, dateOfBirth)) {
             console.log('🎭 Demo patient detected - returning mock response');
             const demoResponse = getDemoResponse();
             
@@ -249,6 +265,7 @@ async function parseDatabaseDrivenX12_271(x12Data, officeAllyPayerId, payerConfi
         program: '',
         planType: '',
         payer: payerConfig.displayName,
+        managedCareOrg: null,
         error: '',
         details: '',
         copayInfo: null,
@@ -344,17 +361,97 @@ async function parseDatabaseDrivenX12_271(x12Data, officeAllyPayerId, payerConfi
 }
 
 /**
+ * Extract managed care organization details from LS*2120 loops
+ * These loops identify the actual payer responsible for services
+ */
+function extractManagedCareOrg(x12Data) {
+    const segments = x12Data.split('~');
+    let inLoop2120 = false;
+    let afterLoop2120 = false;
+    let currentPayer = null;
+    let currentServiceTypes = [];
+
+    for (let i = 0; i < segments.length; i++) {
+        const segment = segments[i].trim();
+
+        // Start of 2120 loop
+        if (segment === 'LS*2120') {
+            // If we were collecting EB segments from a previous payer, check if it handles mental health
+            if (afterLoop2120 && currentPayer && currentServiceTypes.some(st => st.includes('MH') || st.includes('MENTAL HEALTH'))) {
+                return {
+                    name: currentPayer,
+                    serviceTypes: currentServiceTypes
+                };
+            }
+
+            // Reset for new loop
+            inLoop2120 = true;
+            afterLoop2120 = false;
+            currentPayer = null;
+            currentServiceTypes = [];
+            continue;
+        }
+
+        // End of 2120 loop - now collect EB segments that follow
+        if (segment === 'LE*2120') {
+            inLoop2120 = false;
+            afterLoop2120 = true; // Start collecting EB segments for this payer
+            continue;
+        }
+
+        // Inside the loop, look for payer name (NM1*PR segment)
+        if (inLoop2120 && segment.startsWith('NM1*PR*')) {
+            const parts = segment.split('*');
+            currentPayer = parts[3]; // Payer name
+        }
+
+        // After loop ended, collect EB segments until next loop or major break
+        if (afterLoop2120 && segment.startsWith('EB*')) {
+            const parts = segment.split('*');
+            const serviceTypes = parts[3] ? parts[3].split('^') : [];
+            const insurancePlan = parts[4] || '';
+
+            currentServiceTypes.push(...serviceTypes);
+            if (insurancePlan && insurancePlan.includes('MENTAL')) {
+                currentServiceTypes.push(insurancePlan);
+            }
+        }
+    }
+
+    // Check the last payer we were processing
+    if (afterLoop2120 && currentPayer && currentServiceTypes.some(st => st.includes('MH') || st.includes('MENTAL HEALTH'))) {
+        return {
+            name: currentPayer,
+            serviceTypes: currentServiceTypes
+        };
+    }
+
+    return null; // No managed care org found
+}
+
+/**
  * Parse Medicaid responses
  */
 function parseMedicaidResponse(x12Data, result, payerConfig) {
+    // First check for managed care organization in LS*2120 loops
+    const mco = extractManagedCareOrg(x12Data);
+
     if (x12Data.includes('TARGETED ADULT MEDICAID')) {
         result.program = 'Utah Medicaid - Targeted Adult (Traditional FFS)';
         result.planType = 'Traditional Fee-for-Service';
         result.details = 'Active traditional Medicaid coverage - eligible for CM Program';
     } else if (x12Data.includes('MENTAL HEALTH')) {
-        result.program = 'Utah Medicaid - Mental Health Services';
-        result.planType = 'Mental Health Carve-Out';
-        result.details = 'Mental health services covered under traditional Medicaid FFS';
+        // Check if mental health is managed by an MCO
+        if (mco && mco.name) {
+            result.program = `Utah Medicaid - Mental Health`;
+            result.planType = 'Integrated Medicaid Managed Care';
+            result.managedCareOrg = mco.name;
+            result.details = `Mental health services managed by ${mco.name}`;
+        } else {
+            result.program = 'Utah Medicaid - Mental Health Services';
+            result.planType = 'Mental Health Carve-Out';
+            result.details = 'Mental health services covered under traditional Medicaid FFS';
+        }
     } else {
         result.program = payerConfig.displayName;
         result.planType = 'Traditional FFS';

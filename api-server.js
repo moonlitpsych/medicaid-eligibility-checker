@@ -953,6 +953,49 @@ console.log('✅ Claims submission API registered at /api/claims/submit-837p');
 app.get('/api/claims/history', handleGetClaimsHistory);
 console.log('✅ Claims history API registered at /api/claims/history');
 
+// Claims Status Routes
+const { checkClaimStatus, checkClaimStatusFromDatabase } = require('./lib/claims-status-service');
+const { createClient } = require('@supabase/supabase-js');
+
+// Check claim status by claim inquiry data
+app.post('/api/claims/status/check', async (req, res) => {
+    try {
+        const claimInquiry = req.body;
+        const result = await checkClaimStatus(claimInquiry);
+        res.json(result);
+    } catch (error) {
+        console.error('Error checking claim status:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+console.log('✅ Claims status check API registered at /api/claims/status/check');
+
+// Check claim status by database submission ID
+app.get('/api/claims/status/:submissionId', async (req, res) => {
+    try {
+        const { submissionId } = req.params;
+
+        // Initialize Supabase client
+        const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL,
+            process.env.SUPABASE_SERVICE_KEY
+        );
+
+        const result = await checkClaimStatusFromDatabase(supabase, submissionId);
+        res.json(result);
+    } catch (error) {
+        console.error('Error checking claim status from database:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+console.log('✅ Claims status by ID API registered at /api/claims/status/:submissionId');
+
 // Get billing provider info (Moonlit PLLC)
 app.get('/api/providers/billing', async (req, res) => {
     try {
