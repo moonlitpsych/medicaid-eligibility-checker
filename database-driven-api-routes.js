@@ -436,12 +436,22 @@ function parseMedicaidResponse(x12Data, result, payerConfig) {
     // First check for managed care organization in LS*2120 loops
     const mco = extractManagedCareOrg(x12Data);
 
+    // Use enhanced managed care detection
+    const { extractPlanInfo } = require('./lib/x12-271-managed-care-parser');
+    const planInfo = extractPlanInfo(x12Data);
+
     if (x12Data.includes('TARGETED ADULT MEDICAID')) {
         result.program = 'Utah Medicaid - Targeted Adult (Traditional FFS)';
         result.planType = 'Traditional Fee-for-Service';
         result.details = 'Active traditional Medicaid coverage - eligible for CM Program';
+    } else if (planInfo.isManagedCare) {
+        // Patient is in managed care - use enhanced detection
+        result.program = planInfo.program;
+        result.planType = planInfo.planType;
+        result.managedCareOrg = planInfo.managedCareOrg;
+        result.details = planInfo.warning || `Mental health services managed by ${planInfo.managedCareOrg}`;
     } else if (x12Data.includes('MENTAL HEALTH')) {
-        // Check if mental health is managed by an MCO
+        // Legacy logic for non-managed care mental health
         if (mco && mco.name) {
             result.program = `Utah Medicaid - Mental Health`;
             result.planType = 'Integrated Medicaid Managed Care';
@@ -449,12 +459,12 @@ function parseMedicaidResponse(x12Data, result, payerConfig) {
             result.details = `Mental health services managed by ${mco.name}`;
         } else {
             result.program = 'Utah Medicaid - Mental Health Services';
-            result.planType = 'Mental Health Carve-Out';
+            result.planType = 'Traditional Fee-for-Service';
             result.details = 'Mental health services covered under traditional Medicaid FFS';
         }
     } else {
         result.program = payerConfig.displayName;
-        result.planType = 'Traditional FFS';
+        result.planType = 'Traditional Fee-for-Service';
         result.details = 'Active Medicaid coverage';
     }
 }
