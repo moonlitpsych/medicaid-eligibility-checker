@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  /* Field requirement indicators */
+  .field-required {
+    @apply border-l-4 border-required-red;
+  }
+
+  .field-recommended {
+    @apply border-l-4 border-recommended-yellow;
+  }
+
+  .field-optional {
+    @apply border-l-4 border-optional-gray;
+  }
+
+  /* Label styles */
+  .label-required::after {
+    content: " *";
+    @apply text-required-red font-bold;
+  }
+
+  .label-recommended::after {
+    content: " (recommended)";
+    @apply text-recommended-yellow text-sm;
+  }
+
+  /* Help text styles */
+  .help-text {
+    @apply text-sm text-gray-600 mt-1;
+  }
+
+  /* Form field containers */
+  .form-field {
+    @apply mb-4;
+  }
+
+  /* Requirements summary styles */
+  .requirements-summary {
+    @apply bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6;
+  }
+
+  /* Results display */
+  .eligibility-result {
+    @apply mt-6 p-6 border rounded-lg;
+  }
+
+  .eligibility-active {
+    @apply border-green-500 bg-green-50;
+  }
+
+  .eligibility-inactive {
+    @apply border-red-500 bg-red-50;
+  }
+
+  /* Network status badges */
+  .network-in {
+    @apply inline-block bg-green-100 text-green-800 text-sm font-medium px-3 py-1 rounded-full;
+  }
+
+  .network-out {
+    @apply inline-block bg-orange-100 text-orange-800 text-sm font-medium px-3 py-1 rounded-full;
+  }
+
+  .network-unknown {
+    @apply inline-block bg-gray-100 text-gray-800 text-sm font-medium px-3 py-1 rounded-full;
+  }
+}

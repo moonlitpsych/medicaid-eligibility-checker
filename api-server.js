@@ -42,6 +42,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('.'));
 app.use('/reach-2-0', express.static('../reach-2-0'));
+app.use('/eligibility', express.static('public/react-eligibility/dist'));
 
 // Office Ally Configuration - NO HARDCODED CREDENTIALS
 const OFFICE_ALLY_CONFIG = {
@@ -866,7 +867,8 @@ console.log('✅ Payers list API registered at /api/payers/list');
 const {
     syncIntakeQClientsToDatabase,
     getCachedIntakeQClients,
-    getIntakeQClientWithPayer
+    getIntakeQClientWithPayer,
+    fetchIntakeQClient
 } = require('./lib/intakeq-service');
 
 // Get list of cached IntakeQ clients
@@ -906,12 +908,25 @@ console.log('✅ IntakeQ clients list API registered at /api/intakeq/clients/lis
 app.get('/api/intakeq/clients/:clientId', async (req, res) => {
     try {
         const { clientId } = req.params;
-        const client = await getIntakeQClientWithPayer(clientId);
 
-        res.json({
-            success: true,
-            client
-        });
+        // Try to get from database first
+        try {
+            const client = await getIntakeQClientWithPayer(clientId);
+            return res.json({
+                success: true,
+                client
+            });
+        } catch (dbError) {
+            // If not in database, fetch directly from IntakeQ API
+            console.log(`Client ${clientId} not in database, fetching from IntakeQ API...`);
+            const client = await fetchIntakeQClient(clientId);
+
+            // Return the raw IntakeQ API response (PascalCase fields)
+            return res.json({
+                success: true,
+                client
+            });
+        }
     } catch (error) {
         console.error(`Failed to fetch client ${req.params.clientId}:`, error);
         res.status(500).json({
@@ -1061,7 +1076,18 @@ async function startServer() {
     } else {
         console.log('⚠️ CM database initialization skipped (module not available)');
     }
-    
+
+    // Sync IntakeQ clients on startup (non-blocking)
+    console.log('📥 Starting IntakeQ client sync...');
+    syncIntakeQClientsToDatabase()
+        .then(results => {
+            console.log(`✅ IntakeQ sync complete: ${results.updated} clients synced, ${results.errors.length} errors`);
+        })
+        .catch(error => {
+            console.error('⚠️ IntakeQ sync failed on startup:', error.message);
+            console.error('   You can manually sync later via /api/intakeq/clients/sync');
+        });
+
     app.listen(PORT, '0.0.0.0', () => {
         console.log(`
 🎉 OFFICE ALLY + CM API SERVER READY!

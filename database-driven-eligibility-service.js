@@ -11,6 +11,8 @@
 
 require('dotenv').config({ path: '.env.local' });
 const { createClient } = require('@supabase/supabase-js');
+const { parseX12_271Comprehensive } = require('./lib/x12-271-comprehensive-parser');
+const { validatePatientData } = require('./lib/patient-data-validator');
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -466,16 +468,15 @@ async function generateDatabaseDrivenX12_270(patientData, officeAllyPayerId) {
         seg.push(dmgSegment);
     }
 
-    // DTP - Date segment (only include if we have DOB)
-    if (dob) {
-        if (payerConfig.x12Specifics.dtpFormat === 'RD8') {
-            // Range date format (used by Utah Medicaid)
-            seg.push(`DTP*291*RD8*${ccyymmdd}-${ccyymmdd}`);
-        } else {
-            // Single date format (used by most commercial payers)
-            seg.push(`DTP*291*D8*${ccyymmdd}`);
-        }
-    }
+    // DTP - Date segment for service/inquiry date
+    // IMPORTANT: Most payers do NOT want a DTP segment in the request
+    // Utah Medicaid specifically rejects requests with DTP segments (X12 999 error)
+    // The DTP*291 in the RESPONSE tells us the coverage period
+    // For now, we're NOT sending any DTP segment in requests
+    //
+    // TODO: Add payer-specific configuration for DTP requirements
+    // Some commercial payers might need DTP*472 (Service Date)
+    // But Utah Medicaid and others don't want it at all
     
     // EQ - Eligibility or Benefit Inquiry (Request multiple service types for detailed copay info)
     seg.push(`EQ*30`); // 30 = Health Benefit Plan Coverage (general)
@@ -498,15 +499,135 @@ async function generateDatabaseDrivenX12_270(patientData, officeAllyPayerId) {
 
 /**
  * Enhanced X12 271 parsing for auto-population
+ * Now uses comprehensive parser to extract ALL available data
  */
 async function parseX12_271ForAutoPopulation(x12_271, patientData) {
     try {
+        // Use the comprehensive parser to extract all available data
+        const comprehensiveData = parseX12_271Comprehensive(x12_271, patientData);
+
+        // If we have IntakeQ patient data, validate against payer data
+        let validationResults = null;
+        if (patientData.intakeqClientId) {
+            // Fetch the IntakeQ client data
+            const { data: intakeqClient, error } = await supabase
+                .from('intakeq_clients')
+                .select('*')
+                .eq('intakeq_client_id', patientData.intakeqClientId)
+                .single();
+
+            if (intakeqClient && !error) {
+                // Validate the data
+                validationResults = validatePatientData(intakeqClient, comprehensiveData);
+
+                // Store validation results and verified data in database
+                const updateData = {
+                    // Update verified fields
+                    verified_phone: comprehensiveData.phone,
+                    verified_dob: comprehensiveData.dateOfBirth,
+                    verified_gender: comprehensiveData.gender,
+                    verified_first_name: comprehensiveData.patientName?.firstName,
+                    verified_last_name: comprehensiveData.patientName?.lastName,
+                    verified_middle_name: comprehensiveData.patientName?.middleName,
+
+                    // Update verified address
+                    verified_address_street: comprehensiveData.address?.street,
+                    verified_address_city: comprehensiveData.address?.city,
+                    verified_address_state: comprehensiveData.address?.state,
+                    verified_address_zip: comprehensiveData.address?.zip,
+
+                    // Update current payer information
+                    current_payer_name: comprehensiveData.payerInfo?.name,
+                    current_payer_id: comprehensiveData.payerInfo?.payerId,
+                    current_member_id: comprehensiveData.medicaidId,
+                    current_coverage_start_date: comprehensiveData.coveragePeriod?.startDate,
+                    current_coverage_end_date: comprehensiveData.coveragePeriod?.endDate,
+                    coverage_is_active: comprehensiveData.coveragePeriod?.isActive,
+
+                    // Update reference numbers
+                    case_number: comprehensiveData.references?.caseNumber,
+                    patient_account_number: comprehensiveData.references?.patientAccountNumber,
+                    group_number: comprehensiveData.references?.groupNumber,
+                    policy_number: comprehensiveData.references?.policyNumber,
+                    alternate_member_id: comprehensiveData.references?.alternateId,
+
+                    // Update eligibility tracking
+                    last_eligibility_check: new Date().toISOString(),
+                    eligibility_status: comprehensiveData.coveragePeriod?.isActive ? 'ACTIVE' :
+                                      comprehensiveData.coveragePeriod?.isExpired ? 'EXPIRED' : 'UNKNOWN',
+
+                    // Update managed care and provider info
+                    managed_care_org_name: comprehensiveData.managedCareOrg?.name,
+                    managed_care_org_id: comprehensiveData.managedCareOrg?.payerId,
+                    managed_care_org_type: comprehensiveData.managedCareOrg?.type,
+                    primary_care_provider_name: comprehensiveData.primaryCareProvider?.name,
+                    primary_care_provider_npi: comprehensiveData.primaryCareProvider?.npi,
+                    primary_care_provider_phone: comprehensiveData.primaryCareProvider?.phone,
+
+                    // Update COB information
+                    has_other_insurance: comprehensiveData.otherInsurance?.hasOtherInsurance,
+                    other_insurance_details: comprehensiveData.otherInsurance?.otherPayers?.length > 0 ?
+                                           comprehensiveData.otherInsurance : null,
+
+                    // Update payer messages
+                    payer_messages: comprehensiveData.messages?.length > 0 ? comprehensiveData.messages : null,
+
+                    // Store data quality issues
+                    data_quality_issues: validationResults?.hasIssues ? validationResults.issues : null,
+                    data_verification_source: 'X12_271',
+                    data_verified_at: new Date().toISOString()
+                };
+
+                // Remove null/undefined values to avoid overwriting with null
+                Object.keys(updateData).forEach(key => {
+                    if (updateData[key] === undefined) {
+                        delete updateData[key];
+                    }
+                });
+
+                // Update the patient record
+                const { error: updateError } = await supabase
+                    .from('intakeq_clients')
+                    .update(updateData)
+                    .eq('intakeq_client_id', patientData.intakeqClientId);
+
+                if (updateError) {
+                    console.error('Failed to update patient with verified data:', updateError);
+                } else {
+                    console.log('✅ Patient data updated with payer-verified information');
+                }
+            }
+        }
+
+        // Add validation results to the comprehensive data
+        comprehensiveData.dataValidation = validationResults;
+
+        // Return comprehensive data (maintains backward compatibility)
+        return comprehensiveData;
+
+    } catch (error) {
+        console.error('❌ Enhanced X12 271 parsing failed, falling back to basic parser:', error);
+
+        // Fall back to the original basic parsing implementation
         const extractedData = {
             phone: null,
             medicaidId: null,
             gender: null,
             address: null,
-            memberInfo: null
+            memberInfo: null,
+            memberIdValidation: {
+                sent: patientData.memberNumber || patientData.medicaidId || null,
+                returned: null,
+                matches: null,
+                warnings: []
+            },
+            coveragePeriod: {
+                startDate: null,
+                endDate: null,
+                isActive: null,
+                isExpired: null,
+                expirationDate: null
+            }
         };
 
         // Extract phone number from various possible segments
@@ -534,11 +655,99 @@ async function parseX12_271ForAutoPopulation(x12_271, patientData) {
             x12_271.match(/REF\*1L\*([A-Z0-9]+)/i),
             x12_271.match(/REF\*SY\*([A-Z0-9]+)/i)
         ];
-        
+
         for (const match of medicaidMatches) {
             if (match && match[1]) {
                 extractedData.medicaidId = match[1];
+                extractedData.memberIdValidation.returned = match[1];
                 break;
+            }
+        }
+
+        // Validate member ID matches what was sent
+        if (extractedData.memberIdValidation.sent && extractedData.memberIdValidation.returned) {
+            const sent = extractedData.memberIdValidation.sent.trim().toUpperCase();
+            const returned = extractedData.memberIdValidation.returned.trim().toUpperCase();
+
+            extractedData.memberIdValidation.matches = (sent === returned);
+
+            if (!extractedData.memberIdValidation.matches) {
+                extractedData.memberIdValidation.warnings.push({
+                    severity: 'CRITICAL',
+                    type: 'MEMBER_ID_MISMATCH',
+                    message: `Member ID mismatch! You sent ${sent}, but payer returned ${returned}`,
+                    details: `This may indicate: (1) Patient has coverage under a different member ID, (2) Wrong payer selected, or (3) Payer cross-referenced with another database`
+                });
+                console.log(`⚠️ CRITICAL: Member ID mismatch - sent: ${sent}, returned: ${returned}`);
+            } else {
+                console.log(`✅ Member ID validation passed: ${sent}`);
+            }
+        } else if (extractedData.memberIdValidation.sent && !extractedData.memberIdValidation.returned) {
+            extractedData.memberIdValidation.warnings.push({
+                severity: 'WARNING',
+                type: 'NO_MEMBER_ID_RETURNED',
+                message: `Payer did not return a member ID in the response`,
+                details: `You sent member ID ${extractedData.memberIdValidation.sent}, but the payer's response doesn't include a member ID. This may be normal for some payers.`
+            });
+        }
+
+        // Parse coverage dates from DTP segments
+        // DTP*291 = Plan Begin/End Date (most important for determining if coverage is active)
+        const planDateMatch = x12_271.match(/DTP\*291\*RD8\*([0-9]{8})-([0-9]{8})/i);
+        if (planDateMatch) {
+            const startDateStr = planDateMatch[1]; // YYYYMMDD format
+            const endDateStr = planDateMatch[2];
+
+            // Parse dates
+            extractedData.coveragePeriod.startDate = `${startDateStr.substring(0,4)}-${startDateStr.substring(4,6)}-${startDateStr.substring(6,8)}`;
+            extractedData.coveragePeriod.endDate = `${endDateStr.substring(0,4)}-${endDateStr.substring(4,6)}-${endDateStr.substring(6,8)}`;
+            extractedData.coveragePeriod.expirationDate = extractedData.coveragePeriod.endDate;
+
+            // Check if coverage has expired
+            // Coverage that ends today is still valid for today
+            // Use simple string comparison for YYYY-MM-DD format dates
+            const todayStr = new Date().toISOString().split('T')[0]; // Format: "YYYY-MM-DD"
+
+            // Coverage is expired if end date is before today (not including today)
+            // We can compare the formatted endDate directly
+            extractedData.coveragePeriod.isExpired = extractedData.coveragePeriod.endDate < todayStr;
+            extractedData.coveragePeriod.isActive = !extractedData.coveragePeriod.isExpired;
+
+            if (extractedData.coveragePeriod.isExpired) {
+                const endDate = new Date(extractedData.coveragePeriod.endDate);
+                const today = new Date(todayStr);
+                const daysExpired = Math.floor((today - endDate) / (1000 * 60 * 60 * 24));
+                const monthsExpired = Math.floor(daysExpired / 30);
+                const yearsExpired = Math.floor(daysExpired / 365);
+
+                let expiredDuration = '';
+                if (yearsExpired > 0) {
+                    expiredDuration = `${yearsExpired} year${yearsExpired > 1 ? 's' : ''} and ${monthsExpired % 12} month${monthsExpired % 12 !== 1 ? 's' : ''}`;
+                } else if (monthsExpired > 0) {
+                    expiredDuration = `${monthsExpired} month${monthsExpired > 1 ? 's' : ''}`;
+                } else {
+                    expiredDuration = `${daysExpired} day${daysExpired !== 1 ? 's' : ''}`;
+                }
+
+                extractedData.memberIdValidation.warnings.push({
+                    severity: 'CRITICAL',
+                    type: 'COVERAGE_EXPIRED',
+                    message: `Coverage has EXPIRED! Last active date was ${extractedData.coveragePeriod.endDate}`,
+                    details: `This coverage ended ${expiredDuration} ago. The payer returned historical eligibility data, not current active coverage. This patient likely needs to re-enroll or has switched to a different payer.`,
+                    coveragePeriod: `${extractedData.coveragePeriod.startDate} to ${extractedData.coveragePeriod.endDate}`
+                });
+                console.log(`🚨 CRITICAL: Coverage expired ${expiredDuration} ago (ended ${extractedData.coveragePeriod.endDate})`);
+            } else {
+                console.log(`✅ Coverage is active: ${extractedData.coveragePeriod.startDate} to ${extractedData.coveragePeriod.endDate}`);
+            }
+        }
+
+        // Also check for DTP*356 (Effective Date) as fallback
+        if (!extractedData.coveragePeriod.startDate) {
+            const effectiveDateMatch = x12_271.match(/DTP\*356\*D8\*([0-9]{8})/i);
+            if (effectiveDateMatch) {
+                const dateStr = effectiveDateMatch[1];
+                extractedData.coveragePeriod.startDate = `${dateStr.substring(0,4)}-${dateStr.substring(4,6)}-${dateStr.substring(6,8)}`;
             }
         }
 
@@ -563,16 +772,6 @@ async function parseX12_271ForAutoPopulation(x12_271, patientData) {
 
         console.log('📋 Extracted data from X12 271:', extractedData);
         return extractedData;
-
-    } catch (error) {
-        console.error('❌ X12 271 parsing failed:', error);
-        return {
-            phone: null,
-            medicaidId: null,
-            gender: null,
-            address: null,
-            memberInfo: null
-        };
     }
 }
 

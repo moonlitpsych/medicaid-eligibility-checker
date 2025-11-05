@@ -239,6 +239,14 @@ async function handleDatabaseDrivenEligibilityCheck(req, res) {
         // Add extracted data to response if available
         if (eligibilityResult.extractedData) {
             console.log('📋 Auto-population data available:', Object.keys(eligibilityResult.extractedData));
+
+            // CRITICAL: Override enrolled status if coverage has expired
+            if (eligibilityResult.extractedData.coveragePeriod?.isExpired) {
+                console.log('🚨 OVERRIDING enrolled status: Coverage has expired!');
+                eligibilityResult.enrolled = false;
+                eligibilityResult.error = `Coverage expired on ${eligibilityResult.extractedData.coveragePeriod.endDate}`;
+                eligibilityResult.details = `Historical coverage found, but it EXPIRED on ${eligibilityResult.extractedData.coveragePeriod.endDate}. This patient needs current active coverage.`;
+            }
         }
 
         console.log(`✅ Database-driven eligibility check complete: ${eligibilityResult.enrolled ? 'ENROLLED' : 'NOT ENROLLED'}`);

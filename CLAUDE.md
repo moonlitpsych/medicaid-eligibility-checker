@@ -1,10 +1,226 @@
 # CLAUDE.md - Medicaid Eligibility & Claims System
 
-**Last Updated**: 2025-10-08 (Evening - Configuration Fix Complete)
+**Last Updated**: 2025-11-05 (React Eligibility Checker + Validation Complete)
 **Status**:
+- ✅ **React Eligibility Checker**: Dynamic form fields, member ID validation, expired coverage detection
 - ✅ **Eligibility Checking**: Production-ready (Utah Medicaid, Aetna, HMHI-BHN, First Health working)
 - 🟡 **Claims Submission**: RC77 fix applied, awaiting validation
 - ✅ **First Health Network**: Configuration fixed - API successfully querying payer
+
+---
+
+## 🎯 HIGH PRIORITY ROADMAP
+
+### **1. Fix Patient Search - Allow Full Name Queries** 🔴
+
+**Problem**: Patient search currently only works with partial names or single names (first OR last). Searching "Austin Schneider" returns no results, but "Austin" or "Schneider" work fine.
+
+**Location**: `/lib/intakeq-service.js` - `getCachedIntakeQClients()` function (lines 200-240)
+
+**Current Implementation**:
+```javascript
+if (search) {
+    // Search by name
+    query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%`);
+}
+```
+
+**The Issue**: This searches for the ENTIRE search string in first_name OR last_name, not for individual words across both fields.
+
+**Required Fix**: Split the search query by spaces and search for each word independently across both first_name and last_name fields. Handle multiple combinations:
+- "Austin" → Match first_name='Austin'
+- "Schneider" → Match last_name='Schneider'
+- "Austin Schneider" → Match first_name='Austin' AND last_name='Schneider'
+- "Schneider Austin" → Match first_name='Austin' AND last_name='Schneider' (reverse order)
+- "Aust Schne" → Match first_name LIKE 'Aust%' AND last_name LIKE 'Schne%'
+
+**Suggested Approach**:
+```javascript
+if (search) {
+    const searchTerms = search.trim().split(/\s+/); // Split by whitespace
+
+    if (searchTerms.length === 1) {
+        // Single word: search in either field
+        query = query.or(`first_name.ilike.%${searchTerms[0]}%,last_name.ilike.%${searchTerms[0]}%`);
+    } else {
+        // Multiple words: try combinations
+        // Option 1: first word = first name, second word = last name
+        // Option 2: first word = last name, second word = first name
+        // Option 3: all words in either field (fallback)
+
+        const filters = [];
+        filters.push(`first_name.ilike.%${searchTerms[0]}%,last_name.ilike.%${searchTerms[1]}%`);
+        filters.push(`first_name.ilike.%${searchTerms[1]}%,last_name.ilike.%${searchTerms[0]}%`);
+
+        query = query.or(filters.join(','));
+    }
+}
+```
+
+**Alternative Approach** (more flexible but complex):
+Use Postgres full-text search with `tsquery` for natural language searching across concatenated first_name + last_name.
+
+**Testing**:
+- Test "Austin Schneider" → Should find Austin
+- Test "Schneider Austin" → Should find Austin
+- Test "Aust Schne" → Should find Austin
+- Test "Austin" → Should still work
+- Test "Schneider" → Should still work
+
+**Files to Update**:
+- `/lib/intakeq-service.js` - Update `getCachedIntakeQClients()` function
+
+---
+
+### **2. Comprehensive X12 271 Response Parsing & Patient Data Enrichment** 🔴🔴
+
+**Problem**: We're only extracting a minimal subset of data from X12 271 responses (phone, medicaidId, gender, address). The 271 response contains much more valuable data that should be:
+1. Stored in Supabase `intakeq_clients` table
+2. Used to validate/correct IntakeQ patient data
+3. Displayed to users for verification
+
+**Current State**:
+- **Parser Location**: `database-driven-eligibility-service.js` - `parseX12_271ForAutoPopulation()` function (lines 502-640)
+- **Currently Extracted**: phone, medicaidId, gender, address, memberIdValidation, coveragePeriod
+- **Database Schema**: `intakeq_clients` table in Supabase
+
+**Required Analysis**:
+The next Claude session should:
+
+1. **Collect Raw X12 271 Samples**
+   - Query `eligibility_checks` table for recent X12 271 responses from different payers
+   - Focus on: Utah Medicaid (UTMCD), Aetna (60054), Regence (00910), HMHI-BHN, First Health (INT-BENE-ADMIN)
+   ```sql
+   SELECT office_ally_payer_id, raw_x12_271_response, created_at
+   FROM eligibility_checks
+   WHERE raw_x12_271_response IS NOT NULL
+   ORDER BY created_at DESC
+   LIMIT 50;
+   ```
+
+2. **Analyze X12 271 Segment Patterns Across Payers**
+
+   **Known Segments to Parse**:
+   - **NM1\*IL** - Insured/Patient Name (currently parsed for member ID only)
+   - **NM1\*PR** - Payer Name (we should store this)
+   - **N3** - Address Line (currently parsed)
+   - **N4** - City/State/ZIP (currently parsed)
+   - **DMG** - Demographics (gender, DOB) - currently parsing gender, should also parse DOB
+   - **DTP\*291** - Coverage period (currently parsed)
+   - **DTP\*307** - Coverage effective date
+   - **DTP\*472** - Service date (date of inquiry)
+   - **DTP\*356** - Eligibility begin date
+   - **REF\*18** - Patient Account Number
+   - **REF\*1L** - Group Number
+   - **REF\*SY** - SSN (if provided)
+   - **PER** - Contact Information (phone numbers, email?) - currently parsing phone
+   - **EB** - Eligibility/Benefit Information (plan details, copays, deductibles)
+   - **HSD** - Health Care Services Delivery (service type codes, limitations)
+   - **MSG** - Messages (payer notes, instructions)
+   - **LS\*2120 / NM1\*PR** - Managed Care Organization details
+
+   **Potentially Available But Unexplored**:
+   - Email address (might be in PER segment)
+   - Subscriber name (if patient is dependent)
+   - Subscriber relationship code
+   - Prior authorization requirements
+   - Network restrictions
+   - Plan limitations/exclusions
+   - Service-specific copay/coinsurance details
+   - Coordination of benefits (COB) information
+
+3. **Map X12 271 Data to Supabase Schema**
+
+   **Current `intakeq_clients` table fields**:
+   - id (uuid)
+   - intakeq_client_id (text)
+   - first_name, last_name (text)
+   - date_of_birth (date)
+   - email, phone (text)
+   - street_address, city, state, zip_code (text)
+   - primary_insurance_name (text)
+   - primary_insurance_policy_number (text)
+   - last_synced_at (timestamp)
+
+   **Proposed New Fields** (add these based on what X12 271 contains):
+   - `verified_phone` (text) - Phone from payer (more reliable than IntakeQ)
+   - `verified_address_street`, `verified_address_city`, `verified_address_state`, `verified_address_zip` (text) - Address from payer
+   - `verified_dob` (date) - DOB from payer (can compare to IntakeQ DOB)
+   - `verified_gender` (text) - Gender from payer
+   - `current_payer_name` (text) - Payer name from most recent eligibility check
+   - `current_member_id` (text) - Current member ID from payer
+   - `current_coverage_start_date`, `current_coverage_end_date` (date) - Coverage period
+   - `subscriber_name` (text) - If patient is dependent
+   - `subscriber_relationship` (text) - Relationship to subscriber
+   - `last_eligibility_check` (timestamp) - When we last verified coverage
+   - `eligibility_status` (text) - ACTIVE, EXPIRED, UNKNOWN
+   - `managed_care_org` (text) - MCO name if applicable
+
+4. **Create Data Validation & Comparison Logic**
+
+   Compare X12 271 data with IntakeQ data and flag discrepancies:
+   - DOB mismatch
+   - Name spelling differences
+   - Address differences
+   - Phone number differences
+   - Gender differences
+
+   Store validation results in a new field: `data_quality_issues` (jsonb) containing:
+   ```json
+   {
+     "dob_mismatch": {
+       "intakeq_value": "1991-08-08",
+       "payer_value": "1991-08-09",
+       "severity": "CRITICAL"
+     },
+     "address_mismatch": {
+       "intakeq_value": "123 Main St",
+       "payer_value": "735 W 12278 S",
+       "severity": "WARNING"
+     }
+   }
+   ```
+
+5. **Update UI to Display Validated Data**
+
+   In `ResultsDisplay.jsx`, add a "Patient Data Verification" section showing:
+   - ✅ Data that matches between IntakeQ and payer
+   - ⚠️ Data that differs (with both values shown)
+   - 📝 Data only available from payer (not in IntakeQ)
+
+   Allow users to:
+   - Click "Use Payer Data" to update IntakeQ fields
+   - Mark discrepancies as "Reviewed"
+   - Add notes about why data differs
+
+6. **Create X12 271 Parsing Test Suite**
+
+   Create `/tests/x12-271-parser-tests.js` with test cases for:
+   - Each payer's response format
+   - Different coverage scenarios (active, expired, COB)
+   - Different patient types (subscriber, dependent)
+   - Edge cases (missing fields, unusual formats)
+
+**Expected Outcomes**:
+- Comprehensive X12 271 parsing extracting ALL available data
+- Supabase patient records automatically enriched with payer-verified data
+- Data quality validation highlighting discrepancies
+- UI displaying verification status and allowing corrections
+- Reduced data entry errors by using payer data as source of truth
+
+**Success Metrics**:
+- 100% of X12 271 segments documented and parsed
+- 90%+ of patient records have verified payer data
+- Data discrepancies flagged within 24 hours of discovery
+- Users can see "Verified by Payer" indicators on patient data
+
+**Code References**:
+- Parser: `database-driven-eligibility-service.js:502-640`
+- Database: Supabase `intakeq_clients` table
+- UI: `public/react-eligibility/src/components/ResultsDisplay.jsx`
+- X12 Documentation: `/lib/x12-271-cob-parser.js` (has examples of COB parsing)
+
+**Warning**: Be careful not to overwrite good IntakeQ data with incorrect payer data. Always show both values and let users confirm updates.
 
 ---
 
@@ -305,8 +521,77 @@ INTAKEQ_API_KEY=[redacted]
 
 ---
 
+## 🎉 COMPLETED THIS SESSION (2025-11-05)
+
+### **React-Based Dynamic Eligibility Checker**
+**Status**: ✅ Production Ready
+
+Built a complete React application (`/public/react-eligibility/`) replacing the static HTML interface with:
+
+**Features Implemented**:
+1. **Dynamic Form Fields** - Form fields automatically show/hide based on selected payer's X12 270 requirements
+2. **Color-Coded Requirements** - Red (required), Yellow (recommended), Gray (optional) visual indicators
+3. **IntakeQ Patient Search** - Auto-fill patient data from IntakeQ database with real-time search
+4. **IntakeQ Database Sync** - Automatic sync of 100 patients on server startup + manual "🔄 Sync IntakeQ" button
+5. **Payer Configuration System** - Database-driven field requirements loaded from `/api/database-eligibility/payer/:payerId/config`
+6. **Requirements Summary Panel** - Shows exactly which fields are needed after payer selection
+7. **Smart Validation** - Handles flexible "OR" requirements (e.g., "DOB OR Medicaid ID")
+8. **Graceful Fallback** - 1-hour localStorage caching, offline mode support
+
+**Validation & Data Quality** (NEW):
+1. **Member ID Validation** ✅
+   - Compares member ID sent vs. returned by payer
+   - Detects when payer cross-references to different member ID
+   - Example: Austin Schneider sent `0601626420` (Medicaid), Aetna returned `101892685000` (marketplace)
+   - Code: `database-driven-eligibility-service.js:510-577`
+
+2. **Coverage Date Validation** ✅
+   - Parses DTP\*291 segments to extract coverage start/end dates
+   - Compares end date against current date to detect expired coverage
+   - Overrides `enrolled: true` to `enrolled: false` if coverage has expired
+   - Calculates expiration duration (e.g., "1 year and 7 months ago")
+   - Example: Austin's Aetna coverage expired April 1, 2024 (1.5 years ago)
+   - Code: `database-driven-eligibility-service.js:586-640`, `database-driven-api-routes.js:243-249`
+
+3. **Warning System** ✅
+   - Two severity levels: CRITICAL (red) and WARNING (yellow)
+   - Displayed prominently before all other results
+   - Shows both sent and returned values for comparison
+   - Types: MEMBER_ID_MISMATCH, COVERAGE_EXPIRED, NO_MEMBER_ID_RETURNED
+
+4. **Coverage Period Display** ✅
+   - Shows coverage dates with color-coded indicators (green=active, red=expired)
+   - Example: "1/1/2024 - 4/1/2024 [ EXPIRED ]"
+   - Code: `ResultsDisplay.jsx:77-138`
+
+**Technical Stack**:
+- React 18 + Vite 6 (dev server on port 5174)
+- Tailwind CSS for styling
+- Custom hooks: `usePayerConfig`, `useIntakeQSearch`, `useEligibilityCheck`
+- Production build served at `/eligibility` endpoint
+- API proxy in vite.config.js for `/api/*` requests
+
+**Files Created/Modified**:
+- `/public/react-eligibility/` - Complete React app structure
+- `/database-driven-eligibility-service.js:502-640` - Enhanced X12 271 parsing with validation
+- `/database-driven-api-routes.js:243-249` - Coverage expiration override logic
+- `/public/react-eligibility/src/components/ResultsDisplay.jsx` - Warning and coverage period UI
+- `/api-server.js:1080-1089` - Automatic IntakeQ sync on startup
+
+**Test Cases Verified**:
+- ✅ Austin Schneider + Aetna → Member ID mismatch + Expired coverage detected
+- ✅ IntakeQ sync → 100 patients synced successfully
+- ✅ Patient search → Auto-fill from database (snake_case fields)
+- ✅ Dynamic fields → Payer-specific requirements displayed correctly
+
+---
+
 ## ✅ WHAT'S WORKING
 
+- ✅ **React Eligibility Checker** - Dynamic forms, validation, warnings (NEW)
+- ✅ **Member ID Validation** - Detects mismatches between sent/returned IDs (NEW)
+- ✅ **Coverage Date Validation** - Detects expired coverage (NEW)
+- ✅ **IntakeQ Database Sync** - Automatic + manual sync (NEW)
 - ✅ Utah Medicaid FFS eligibility (Jeremy Montoya, Tella Silver, Bryan Belveal)
 - ✅ Aetna eligibility with copay details (Eleanor Hopkins)
 - ✅ HMHI-BHN (Hayden-Moore Health Innovations) eligibility
@@ -318,11 +603,14 @@ INTAKEQ_API_KEY=[redacted]
 
 ## ⚠️ NEEDS FIXING
 
-- 🔴 **First Health Network eligibility** (Nicholas Smith) - VIEW configuration issue
-- 🟡 **UUHP eligibility** - Same VIEW configuration issue
+- 🔴 **Patient Search Full Name** - "Austin Schneider" doesn't work, only "Austin" or "Schneider" (see HIGH PRIORITY ROADMAP #1)
+- 🔴 **X12 271 Comprehensive Parsing** - Only extracting minimal data (see HIGH PRIORITY ROADMAP #2)
+- 🟡 **UUHP eligibility** - VIEW configuration issue
 - 🟡 **RC77 claims rejection** - Awaiting validation of fix
 - ⚠️ **Provider NPI selection** - May not be using correct provider per payer
 
 ---
 
-**For the next Claude Code session**: Start with investigating `v_office_ally_eligibility_configs` VIEW definition and fixing the First Health Network configuration mismatch. This is blocking a real patient from getting care.
+**For the next Claude Code session**:
+1. **HIGH PRIORITY**: Fix patient search to allow full name queries (see roadmap item #1 above)
+2. **HIGH PRIORITY**: Comprehensive X12 271 parsing and patient data enrichment (see roadmap item #2 above)
