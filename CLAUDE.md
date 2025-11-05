@@ -1,11 +1,12 @@
 # CLAUDE.md - Medicaid Eligibility & Claims System
 
-**Last Updated**: 2025-11-05 (React Eligibility Checker + Validation Complete)
+**Last Updated**: 2025-11-05 (Provider Configuration & Network Status Verification)
 **Status**:
-- ✅ **React Eligibility Checker**: Dynamic form fields, member ID validation, expired coverage detection
-- ✅ **Eligibility Checking**: Production-ready (Utah Medicaid, Aetna, HMHI-BHN, First Health working)
+- ✅ **React Eligibility Checker**: Dynamic form fields, member ID validation, expired coverage detection, network status verification
+- ✅ **Eligibility Checking**: Production-ready (Utah Medicaid, Aetna, HMHI-BHN, Blue Shield CA, Anthem BC CA)
+- ✅ **Provider Configuration**: Anthony Privratsky (NPI: 1336726843) as default provider, service type A3 for telehealth
+- ✅ **Network Status Verification**: In-network status automatically verified via X12 271 responses
 - 🟡 **Claims Submission**: RC77 fix applied, awaiting validation
-- ✅ **First Health Network**: Configuration fixed - API successfully querying payer
 
 ---
 
@@ -224,105 +225,31 @@ The next Claude session should:
 
 ---
 
-## ✅ RESOLVED: First Health Network Eligibility Configuration
+## 🎯 RECENT ENHANCEMENTS (2025-11-05)
 
-### **The Problem (RESOLVED)**
+### **✅ Provider Configuration & Network Status Verification**
 
-**Patient**: Nicholas Smith
-**Insurance**: American Life Insurance Co. via International Benefits Administrators (First Health Network)
-**Member ID**: AFLMFEA684623879
-**DOB**: 03/26/2004
-**Effective Date**: 01/01/2025
+**Changes**:
+1. **Default Provider Updated**: Changed from Travis Norseth to Anthony Privratsky (NPI: 1336726843) in `database-driven-eligibility-service.js:228`
+2. **Telehealth Service Type Added**: Added EQ*A3 (Professional Physician Visit - Home) to X12 270 requests for telehealth/home visits
+3. **Network Status Verification**: Confirmed in-network status verification working via X12 271 EB segment field 12
 
-**Original Symptom**: Eligibility check returns "Payer not configured: INT-BENE-ADMIN"
-**Status**: ✅ **Configuration FIXED** - See FIRST_HEALTH_FIX_COMPLETE.md for details
+**Payers Added**:
+- **Blue Shield of California** (Payer ID: 940360524) - Verified in-network for Anthony Privratsky
+- **Anthem Blue Cross of California** (Payer ID: 10051) - Verified in-network for Anthony Privratsky
 
-### **What We've Verified**
+**Network Status Verification Details**:
+- X12 270 request includes provider NPI (Anthony Privratsky: 1336726843)
+- Payer responds with network flag in EB segment field 12 ('Y' = in-network, 'N' = out-of-network)
+- Parser extracts network status: `lib/x12-271-financial-parser.js:318-328`
+- UI displays network status with visual indicators: `ResultsDisplay.jsx:205-217`
+- Network status is payer-verified, not assumed from provider directories
 
-✅ **Correct Office Ally Payer ID**: INT-BENE-ADMIN (confirmed via test)
-✅ **Payer added to `payers` table**:
-```sql
-SELECT * FROM payers WHERE name = 'International Benefits Administrators (First Health Network)';
--- Returns: id = f8acacd5-8e2e-46fa-962d-b52c3c09f284, oa_eligibility_270_id = 'INT-BENE-ADMIN'
-```
+**Test Cases Verified**:
+- ✅ Deanne Stookey + Blue Shield CA → `IN_NETWORK` (confirmed via provider directory)
+- ✅ Haley Tucker + Anthem BC CA → `IN_NETWORK` (payer ID 10051)
 
-✅ **Payer added to `payer_office_ally_configs` table**:
-```sql
-SELECT * FROM payer_office_ally_configs
-WHERE office_ally_payer_id = 'INT-BENE-ADMIN';
--- Returns: office_ally_payer_id = 'INT-BENE-ADMIN', payer_display_name = 'International Benefits Administrators (First Health Network)'
-```
-
-✅ **Anthony Privratsky configured as preferred provider**:
-```sql
-SELECT * FROM v_provider_office_ally_configs WHERE provider_npi = '1336726843';
--- Returns: is_preferred_for_payers = ["INT-BENE-ADMIN"], supported_office_ally_payer_ids = ["INT-BENE-ADMIN","UTMCD","60054"]
-```
-
-❌ **VIEW not returning payer config**:
-```sql
-SELECT * FROM v_office_ally_eligibility_configs WHERE office_ally_payer_id = 'INT-BENE-ADMIN';
--- Returns: NO ROWS (this is the issue!)
-```
-
-### **Root Cause**
-
-The eligibility service queries `v_office_ally_eligibility_configs` VIEW to get payer configuration. This VIEW is returning NO ROWS for INT-BENE-ADMIN, even though the underlying `payer_office_ally_configs` table has the data.
-
-**Code reference**: `database-driven-eligibility-service.js` lines 72-102
-```javascript
-async function getPayerConfig(officeAllyPayerId) {
-    const { data: config, error } = await supabase
-        .from('v_office_ally_eligibility_configs')  // ← This VIEW is the problem
-        .select('*')
-        .eq('office_ally_payer_id', officeAllyPayerId)
-        .single();
-    // ...
-}
-```
-
-### **The Disconnect**
-
-We've been adding data to `payer_office_ally_configs` table, but the VIEW `v_office_ally_eligibility_configs` appears to query a DIFFERENT table or has incompatible JOIN conditions.
-
-**Hypothesis**: The VIEW was designed for a different table structure (possibly an older `office_ally_eligibility_configs` table mentioned in early documentation).
-
-### **Why This Matters**
-
-- **Moonlit is IN-NETWORK with First Health**: Verified on FirstHealthLBP.com - Anthony Privratsky shows as in-network provider
-- **Patient has active coverage**: Effective date 01/01/2025
-- **This is a real patient** trying to book appointments
-- **This pattern will repeat**: Other First Health Network patients will have same issue
-
-### **What Next Claude Code Should Do**
-
-1. **Investigate the VIEW definition**:
-   ```sql
-   SELECT pg_get_viewdef('v_office_ally_eligibility_configs', true);
-   ```
-   This will show what table(s) the VIEW actually queries.
-
-2. **Identify the mismatch**: Compare VIEW definition to what tables we've been populating.
-
-3. **Choose a fix**:
-   - **Option A**: Rebuild the VIEW to query `payer_office_ally_configs` table
-   - **Option B**: Populate the table the VIEW is actually querying
-   - **Option C**: Change `database-driven-eligibility-service.js` to query `payer_office_ally_configs` directly instead of the VIEW
-
-4. **Test Nicholas Smith** with corrected configuration.
-
-5. **Verify provider NPI selection**: Ensure the system uses Anthony Privratsky's NPI (1336726843) for First Health, not Travis Norseth's NPI.
-
-### **Test Files Created**
-
-- `/Users/macsweeney/medicaid-eligibility-checker/test-nicholas-smith.js` - Automated test for Nicholas
-- `/tmp/nicholas-271.txt` - Raw X12 271 responses from testing
-
-### **SQL Scripts Created**
-
-- `/tmp/add-int-bene-admin-minimal.sql` - Add to payers table
-- `/tmp/configure-anthony-for-first-health-with-npi.sql` - Configure Anthony as preferred provider
-- `/tmp/restore-int-bene-admin.sql` - Restore correct payer ID after testing
+**Commit**: e6f902f
 
 ---
 
@@ -388,42 +315,6 @@ We've been adding data to `payer_office_ally_configs` table, but the VIEW `v_off
 
 ---
 
-## 🔧 RECENT ENHANCEMENTS (2025-10-07)
-
-### **✅ Enhanced Aetna Copay Parsing**
-
-**Fixed**: Eleanor Hopkins (Aetna patient) was showing null copays despite service type codes
-
-**Root Cause**: Two parsing bugs in `lib/x12-271-financial-parser.js`:
-1. Amount position - Aetna uses position 7, parser only checked position 6
-2. Eligibility code - Aetna uses `EB*B`, parser only checked insurance plan field
-
-**Result**: Eleanor now shows PCP $20, Specialist $40, Urgent Care $50 correctly
-
-**Commit**: f5affea
-
-### **✅ Added Service Type Codes to X12 270 Requests**
-
-**Enhancement**: Request multiple service types for detailed copay information
-
-**Changes**:
-- Added `EQ*30` (Health Benefit Plan Coverage - general)
-- Added `EQ*98` (Professional Physician Visit - Office)
-- Added `EQ*A8` (Psychiatric - Outpatient)
-
-**Files Updated**:
-- `api-universal-eligibility.js`
-- `database-driven-eligibility-service.js`
-
-### **✅ Patient Cost Estimator**
-
-**Feature**: Shows estimated patient responsibility for common services
-
-**Files**:
-- `lib/moonlit-fee-schedule.js`
-- `lib/patient-cost-estimator.js`
-
----
 
 ## 🚀 QUICK START
 
@@ -451,15 +342,18 @@ curl -X POST http://localhost:3000/api/database-eligibility/check \
   -d '{"firstName":"Eleanor","lastName":"Hopkins","dateOfBirth":"1983-05-15","memberNumber":"W12345678","payerId":"60054"}'
 ```
 
-**First Health Network** (NOT working - see issue above):
+**Blue Shield of California** (works):
 ```bash
-node test-nicholas-smith.js
+curl -X POST http://localhost:3000/api/database-eligibility/check \
+  -H "Content-Type: application/json" \
+  -d '{"firstName":"Test","lastName":"Patient","dateOfBirth":"1981-09-29","memberNumber":"PAM911050467","payerId":"940360524"}'
 ```
 
 ### **Web Interface**
 ```
-http://localhost:3000/public/universal-eligibility-interface.html
+http://localhost:3000/eligibility
 ```
+(React-based dynamic eligibility checker with network status verification)
 
 ---
 
@@ -588,12 +482,17 @@ Built a complete React application (`/public/react-eligibility/`) replacing the 
 
 ## ✅ WHAT'S WORKING
 
-- ✅ **React Eligibility Checker** - Dynamic forms, validation, warnings (NEW)
-- ✅ **Member ID Validation** - Detects mismatches between sent/returned IDs (NEW)
-- ✅ **Coverage Date Validation** - Detects expired coverage (NEW)
-- ✅ **IntakeQ Database Sync** - Automatic + manual sync (NEW)
-- ✅ Utah Medicaid FFS eligibility (Jeremy Montoya, Tella Silver, Bryan Belveal)
-- ✅ Aetna eligibility with copay details (Eleanor Hopkins)
+- ✅ **React Eligibility Checker** - Dynamic forms, validation, warnings, network status verification
+- ✅ **Network Status Verification** - Payer-verified in-network status via X12 271 EB segment
+- ✅ **Provider Configuration** - Anthony Privratsky (NPI: 1336726843) as default provider
+- ✅ **Telehealth Service Type** - EQ*A3 for home/telehealth visits
+- ✅ **Member ID Validation** - Detects mismatches between sent/returned IDs
+- ✅ **Coverage Date Validation** - Detects expired coverage
+- ✅ **IntakeQ Database Sync** - Automatic + manual sync
+- ✅ Utah Medicaid FFS eligibility
+- ✅ Aetna eligibility with copay details
+- ✅ Blue Shield of California eligibility with network status
+- ✅ Anthem Blue Cross of California eligibility with network status
 - ✅ HMHI-BHN (Hayden-Moore Health Innovations) eligibility
 - ✅ IntakeQ patient search and auto-fill
 - ✅ Patient cost estimation for Medicaid patients
@@ -605,9 +504,9 @@ Built a complete React application (`/public/react-eligibility/`) replacing the 
 
 - 🔴 **Patient Search Full Name** - "Austin Schneider" doesn't work, only "Austin" or "Schneider" (see HIGH PRIORITY ROADMAP #1)
 - 🔴 **X12 271 Comprehensive Parsing** - Only extracting minimal data (see HIGH PRIORITY ROADMAP #2)
-- 🟡 **UUHP eligibility** - VIEW configuration issue
+- 🟡 **UUHP eligibility** - Payer configuration needed
+- 🟡 **First Health Network** - Payer configuration needed (payer ID: INT-BENE-ADMIN)
 - 🟡 **RC77 claims rejection** - Awaiting validation of fix
-- ⚠️ **Provider NPI selection** - May not be using correct provider per payer
 
 ---
 
