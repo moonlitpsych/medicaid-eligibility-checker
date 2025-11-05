@@ -242,14 +242,63 @@ export default function ResultsDisplay({ result, onReset }) {
         </div>
       )}
 
-      {/* Copay Information */}
-      {copayInfo && (copayInfo.primaryCareCopay || copayInfo.specialistCopay || copayInfo.urgentCareCopay) && (
+      {/* Psychiatric Outpatient Copay (Service Type A8 - PRIMARY SERVICE FOR MOONLIT) */}
+      {copayInfo && copayInfo.psychiatricAvailable && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-400 rounded-lg p-4 mb-6">
+          <div className="flex items-center mb-3">
+            <span className="text-2xl mr-2">🧠</span>
+            <h4 className="text-lg font-semibold text-gray-900">
+              Psychiatric Outpatient Copay (Primary Service - A8)
+            </h4>
+          </div>
+          <div className="bg-white rounded-lg p-4 border border-blue-200">
+            <div className="text-sm text-gray-600 mb-1">Psychiatric/Behavioral Health Outpatient Visit</div>
+            <div className="text-3xl font-bold text-blue-700">
+              {formatCurrency(copayInfo.psychiatricOutpatientCopay)}
+            </div>
+          </div>
+          <p className="text-xs text-gray-600 mt-3 italic">
+            ✓ This is the copay for Moonlit's psychiatric outpatient services (Service Type A8)
+          </p>
+        </div>
+      )}
+
+      {/* Telemedicine Copay Information (Displayed First - PRIMARY SERVICE FOR MOONLIT) */}
+      {copayInfo && copayInfo.telemedicineAvailable && (
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-400 rounded-lg p-4 mb-6">
+          <div className="flex items-center mb-3">
+            <span className="text-2xl mr-2">🧠📱</span>
+            <h4 className="text-lg font-semibold text-gray-900">
+              Psychiatric Telemedicine Copay (Moonlit's Primary Service)
+            </h4>
+          </div>
+          <div className="bg-white rounded-lg p-4 border border-green-200">
+            <div className="text-sm text-gray-600 mb-1">
+              Psychiatric/Behavioral Health via Telemedicine
+            </div>
+            <div className="text-3xl font-bold text-green-700">
+              {formatCurrency(copayInfo.telemedicinePrimaryCareCopay !== null
+                ? copayInfo.telemedicinePrimaryCareCopay
+                : copayInfo.telemedicineSpecialistCopay)}
+            </div>
+            <div className="mt-2 text-xs text-gray-500">
+              Service Type: A8 (Psychiatric Outpatient) via Telemedicine
+            </div>
+          </div>
+          <p className="text-xs text-gray-600 mt-3 italic">
+            ✓ Moonlit provides psychiatric outpatient services via telemedicine (99% of visits)
+          </p>
+        </div>
+      )}
+
+      {/* In-Person Copay Information */}
+      {copayInfo && (copayInfo.primaryCareCopay !== null || copayInfo.specialistCopay !== null || copayInfo.urgentCareCopay !== null) && (
         <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
           <h4 className="text-lg font-semibold text-gray-900 mb-3">
-            Copay Information
+            In-Person Visit Copays {copayInfo.telemedicineAvailable && <span className="text-sm font-normal text-gray-500">(if applicable)</span>}
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {copayInfo.primaryCareCopay && (
+            {copayInfo.primaryCareCopay !== null && (
               <div className="bg-blue-50 rounded-lg p-3">
                 <div className="text-sm text-gray-600 mb-1">Primary Care</div>
                 <div className="text-2xl font-bold text-blue-700">
@@ -257,7 +306,7 @@ export default function ResultsDisplay({ result, onReset }) {
                 </div>
               </div>
             )}
-            {copayInfo.specialistCopay && (
+            {copayInfo.specialistCopay !== null && (
               <div className="bg-purple-50 rounded-lg p-3">
                 <div className="text-sm text-gray-600 mb-1">Specialist</div>
                 <div className="text-2xl font-bold text-purple-700">
@@ -265,7 +314,7 @@ export default function ResultsDisplay({ result, onReset }) {
                 </div>
               </div>
             )}
-            {copayInfo.urgentCareCopay && (
+            {copayInfo.urgentCareCopay !== null && (
               <div className="bg-orange-50 rounded-lg p-3">
                 <div className="text-sm text-gray-600 mb-1">Urgent Care</div>
                 <div className="text-2xl font-bold text-orange-700">

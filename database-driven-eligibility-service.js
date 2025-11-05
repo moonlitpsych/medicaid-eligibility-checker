@@ -224,11 +224,8 @@ async function getPreferredProvider(officeAllyPayerId) {
     } catch (error) {
         console.error(`Error finding provider for ${officeAllyPayerId}:`, error);
 
-        // Hard fallback to known working providers with TINs
-        if (officeAllyPayerId === '60054') { // Aetna
-            return { name: 'TRAVIS NORSETH', npi: '1124778121', tin: '332185708' }; // Moonlit's TIN
-        }
-        return { name: 'MOONLIT PLLC', npi: '1275348807', tin: '332185708' }; // Moonlit's TIN
+        // Hard fallback to Anthony Privratsky (default provider for all payers)
+        return { name: 'ANTHONY PRIVRATSKY', npi: '1336726843', tin: '332185708' }; // Moonlit's TIN
     }
 }
 
@@ -480,6 +477,7 @@ async function generateDatabaseDrivenX12_270(patientData, officeAllyPayerId) {
     
     // EQ - Eligibility or Benefit Inquiry (Request multiple service types for detailed copay info)
     seg.push(`EQ*30`); // 30 = Health Benefit Plan Coverage (general)
+    seg.push(`EQ*A3`); // A3 = Professional (Physician) Visit - Home (for telehealth/home visits)
     seg.push(`EQ*98`); // 98 = Professional (Physician) Visit - Office (gets PCP/specialist copays)
     seg.push(`EQ*A8`); // A8 = Psychiatric - Outpatient (mental health specific)
 
